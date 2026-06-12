@@ -1,0 +1,34 @@
+{
+  "season": { "type": 2, "year": 2026 },
+  "week": { "number": 1 },
+  "events": [
+    {
+      "id": "401872656",
+      "date": "2026-09-10T00:20Z",
+      "week": { "number": 1 },
+      "status": { "type": { "state": "post", "completed": true } },
+      "competitions": [
+        {
+          "competitors": [
+            { "homeAway": "home", "team": { "abbreviation": "SEA" }, "score": "20", "winner": false },
+            { "homeAway": "away", "team": { "abbreviation": "NE" }, "score": "23", "winner": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "401872657",
+      "date": "2026-09-13T17:00Z",
+      "week": { "number": 1 },
+      "status": { "type": { "state": "pre", "completed": false } },
+      "competitions": [
+        {
+          "competitors": [
+            { "homeAway": "home", "team": { "abbreviation": "GB" }, "score": "0", "winner": false },
+            { "homeAway": "away", "team": { "abbreviation": "DET" }, "score": "0", "winner": false }
+          ]
+        }
+      ]
+    }
+  ]
+}
