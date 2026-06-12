@@ -1,14 +1,14 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { auth } from '@/lib/auth';
+import { auth, type AppSession } from '@/lib/auth';
 import { arePicksOpen } from '@/lib/lock';
 
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
 export async function savePick(gameId: string, pickedTeamId: string): Promise<SaveResult> {
-  const session = await auth();
-  const userId = (session?.user as any)?.id as string | undefined;
+  const session = await auth() as AppSession | null;
+  const userId = session?.user?.id;
   if (!userId) return { ok: false, error: 'Not signed in.' };
 
   const games = await db.game.findMany({ select: { kickoffAt: true } });

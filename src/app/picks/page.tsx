@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
+import { auth, type AppSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { arePicksOpen } from '@/lib/lock';
 import { PicksClient } from './PicksClient';
 
 export default async function PicksPage() {
-  const session = await auth();
-  const userId = (session?.user as any)?.id as string | undefined;
+  const session = await auth() as AppSession | null;
+  const userId = session?.user?.id;
   if (!userId) redirect('/login');
 
   const games = await db.game.findMany({

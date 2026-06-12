@@ -24,6 +24,9 @@ export async function signup(_prev: SignupState, formData: FormData): Promise<Si
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) return { error: 'An account with that email already exists.' };
 
+  if (!process.env.ADMIN_EMAIL) {
+    console.warn('[signup] ADMIN_EMAIL env var is not set — no user will be granted admin access on signup.');
+  }
   await db.user.create({
     data: {
       name: parsed.data.name,

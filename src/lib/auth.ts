@@ -3,6 +3,24 @@ import Credentials from 'next-auth/providers/credentials';
 import { db } from '@/lib/db';
 import { verifyPassword } from '@/lib/auth-helpers';
 
+/**
+ * Typed session shape for this app.
+ * next-auth v5 beta does not support stable module augmentation (adding interface
+ * Session/User/JWT to 'next-auth' breaks its default-export call signature), so
+ * consumers cast `auth()` results to this type instead of relying on the generic
+ * next-auth session type.
+ */
+export interface AppSession {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    isAdmin: boolean;
+  };
+  expires: string;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
@@ -21,17 +39,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt: ({ token, user }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    jwt: ({ token, user }: any) => {
       if (user) {
-        token.uid = (user as any).id;
-        token.isAdmin = (user as any).isAdmin;
+        token.uid = user.id;
+        token.isAdmin = user.isAdmin;
       }
       return token;
     },
-    session: ({ session, token }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    session: ({ session, token }: any) => {
       if (session.user) {
-        (session.user as any).id = token.uid;
-        (session.user as any).isAdmin = token.isAdmin;
+        session.user.id = token.uid;
+        session.user.isAdmin = token.isAdmin;
       }
       return session;
     },

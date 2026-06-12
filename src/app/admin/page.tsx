@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
+import { auth, type AppSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { AdminClient } from './AdminClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  const session = await auth();
-  if (!(session?.user as any)?.isAdmin) redirect('/');
+  const session = await auth() as AppSession | null;
+  if (!session?.user?.isAdmin) redirect('/');
 
   const games = await db.game.findMany({
     orderBy: [{ week: 'asc' }, { kickoffAt: 'asc' }],

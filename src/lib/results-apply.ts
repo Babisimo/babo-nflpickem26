@@ -14,7 +14,8 @@ export async function applyAllResults(): Promise<number> {
     let games: NormalizedGame[];
     try {
       games = await fetchWeek(SEASON, week);
-    } catch {
+    } catch (err) {
+      console.error(`[applyAllResults] Failed to fetch week ${week} from ESPN:`, err);
       continue; // skip a transiently failing week
     }
     for (const g of games) {
