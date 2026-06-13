@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { normalizeNflverseGames } from './nflverse-source';
+import { normalizeNflverseGames, parseNflverseTeams } from './nflverse-source';
 
 const csv = readFileSync(
   path.resolve(__dirname, '../../fixtures/nflverse-games-sample.csv'),
+  'utf8',
+);
+const teamsCsv = readFileSync(
+  path.resolve(__dirname, '../../fixtures/nflverse-teams-sample.csv'),
   'utf8',
 );
 
@@ -14,6 +18,11 @@ describe('normalizeNflverseGames', () => {
     // 4 REG rows; the POST playoff row is excluded.
     expect(games).toHaveLength(4);
     expect(games.some((g) => g.sourceId === '2026_19_KC_BUF')).toBe(false);
+  });
+
+  it('skips rows without a kickoff date/time (e.g. historical rows)', () => {
+    const games = normalizeNflverseGames(csv);
+    expect(games.some((g) => g.sourceId === '1999_01_OLD_GAME')).toBe(false);
   });
 
   it('normalizes a final away win, converting EDT kickoff to UTC', () => {
@@ -60,5 +69,29 @@ describe('normalizeNflverseGames', () => {
     expect(g.winnerAbbr).toBeNull();
     expect(g.homeScore).toBe(20);
     expect(g.awayScore).toBe(20);
+  });
+});
+
+describe('parseNflverseTeams', () => {
+  it('collapses duplicate Rams rows (LA + LAR) into one canonical LAR', () => {
+    const teams = parseNflverseTeams(teamsCsv);
+    const rams = teams.filter((t) => t.abbr === 'LAR');
+    expect(rams).toHaveLength(1);
+    expect(teams.some((t) => t.abbr === 'LA')).toBe(false);
+    expect(rams[0]).toEqual({
+      sourceId: '2510',
+      abbr: 'LAR',
+      name: 'Los Angeles Rams',
+      color: '#003594',
+      logoUrl: 'https://a.espncdn.com/i/teamlogos/nfl/500/lar.png',
+    });
+  });
+
+  it('maps WAS to canonical WSH with name, color, and logo', () => {
+    const teams = parseNflverseTeams(teamsCsv);
+    const wsh = teams.find((t) => t.abbr === 'WSH')!;
+    expect(wsh.name).toBe('Washington Commanders');
+    expect(wsh.color).toBe('#5A1414');
+    expect(wsh.logoUrl).toBe('https://a.espncdn.com/i/teamlogos/nfl/500/wsh.png');
   });
 });

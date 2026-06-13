@@ -26,12 +26,13 @@ model User {
 
 model Team {
   id          String  @id @default(cuid())
-  espnId      String  @unique
+  sourceId    String  @unique
   abbr        String  @unique
   name        String
   conference  String
   division    String
   color       String
+  logoUrl     String?
   homeGames   Game[]  @relation("home")
   awayGames   Game[]  @relation("away")
   wonGames    Game[]  @relation("winner")
@@ -40,7 +41,7 @@ model Team {
 
 model Game {
   id           String     @id @default(cuid())
-  espnId       String     @unique
+  sourceId     String     @unique
   week         Int
   kickoffAt    DateTime
   homeTeam     Team       @relation("home", fields: [homeTeamId], references: [id])

@@ -64,6 +64,7 @@ function parseCsv(csv: string): Record<string, string>[] {
 export function normalizeNflverseGames(csv: string): NormalizedGame[] {
   return parseCsv(csv)
     .filter((r) => r.game_type === 'REG')
+    .filter((r) => r.gameday !== '' && r.gametime !== '')
     .map((r) => {
       const hasScores = r.home_score !== '' && r.away_score !== '';
       const status = hasScores ? 'FINAL' : 'SCHEDULED';
@@ -90,6 +91,45 @@ export function normalizeNflverseGames(csv: string): NormalizedGame[] {
         winnerAbbr,
       };
     });
+}
+
+const NFLVERSE_TEAMS_URL =
+  'https://github.com/nflverse/nflverse-data/releases/download/teams/teams_colors_logos.csv';
+
+export interface NflverseTeam {
+  sourceId: string;
+  abbr: string; // canonical
+  name: string;
+  color: string;
+  logoUrl: string;
+}
+
+/**
+ * Parse the nflverse team colors/logos CSV into canonical team metadata.
+ * The dataset carries a few duplicate/relocated abbreviations (e.g. LA and
+ * LAR for the Rams); these collapse to a single canonical entry.
+ */
+export function parseNflverseTeams(csv: string): NflverseTeam[] {
+  const byAbbr = new Map<string, NflverseTeam>();
+  for (const r of parseCsv(csv)) {
+    if (!r.team_abbr) continue;
+    const abbr = canonicalAbbr(r.team_abbr);
+    byAbbr.set(abbr, {
+      sourceId: r.team_id,
+      abbr,
+      name: r.team_name,
+      color: r.team_color,
+      logoUrl: r.team_logo_espn,
+    });
+  }
+  return [...byAbbr.values()];
+}
+
+/** Fetch the nflverse team colors/logos dataset and parse it. */
+export async function fetchNflverseTeams(): Promise<NflverseTeam[]> {
+  const res = await fetch(NFLVERSE_TEAMS_URL, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`nflverse teams fetch failed: ${res.status}`);
+  return parseNflverseTeams(await res.text());
 }
 
 /** Fetch and normalize the full nflverse games dataset for a season. */
