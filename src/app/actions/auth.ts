@@ -2,7 +2,13 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { signOut } from '@/lib/auth';
 import { hashPassword } from '@/lib/auth-helpers';
+
+/** Sign the current user out and return to the standings home. */
+export async function logout(): Promise<void> {
+  await signOut({ redirectTo: '/' });
+}
 
 const SignupSchema = z.object({
   name: z.string().min(1, 'Name is required'),

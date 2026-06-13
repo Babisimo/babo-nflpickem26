@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -26,17 +27,38 @@ function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-sm space-y-4">
-      <h1 className="text-xl font-bold">Log in</h1>
-      {params.get('registered') && <p className="text-sm text-green-700">Account created — please log in.</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <input name="email" type="email" placeholder="Email" className="w-full rounded border px-3 py-2" required />
-      <input name="password" type="password" placeholder="Password" className="w-full rounded border px-3 py-2" required />
-      <button disabled={pending} className="w-full rounded bg-slate-900 py-2 text-white disabled:opacity-50">
-        {pending ? 'Logging in…' : 'Log in'}
-      </button>
-      <p className="text-sm text-slate-600">No account? <a href="/signup" className="underline">Sign up</a></p>
-    </form>
+    <div className="mx-auto max-w-sm">
+      <div className="reveal card p-8">
+        <p className="eyebrow">Welcome back</p>
+        <h1 className="mt-3 font-display text-4xl uppercase tracking-tight text-chalk">Log in</h1>
+
+        {params.get('registered') && (
+          <p className="mt-5 rounded-xl border border-accent/30 bg-accent/[0.07] px-4 py-3 font-mono text-[12px] uppercase tracking-[0.1em] text-accent">
+            Account created &mdash; please log in
+          </p>
+        )}
+        {error && (
+          <p className="mt-5 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {error}
+          </p>
+        )}
+
+        <form onSubmit={onSubmit} className="mt-6 space-y-3">
+          <input name="email" type="email" placeholder="Email" className="field-input" required />
+          <input name="password" type="password" placeholder="Password" className="field-input" required />
+          <button disabled={pending} className="btn-accent w-full">
+            {pending ? 'Logging in…' : 'Log in'}
+          </button>
+        </form>
+
+        <p className="mt-6 font-mono text-[12px] uppercase tracking-[0.1em] text-faint">
+          No account?{' '}
+          <Link href="/signup" className="text-accent underline-offset-4 hover:underline">
+            Sign up
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 }
 
