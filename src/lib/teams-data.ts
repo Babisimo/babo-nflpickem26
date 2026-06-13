@@ -1,3 +1,15 @@
+// nflverse uses a few team abbreviations that differ from our canonical
+// (ESPN-style) ones. Map them so the Team table key stays stable.
+const NFLVERSE_TO_CANONICAL: Record<string, string> = {
+  LA: 'LAR', // Rams
+  WAS: 'WSH', // Washington
+};
+
+/** Convert an nflverse team abbreviation to our canonical abbreviation. */
+export function canonicalAbbr(nflverseAbbr: string): string {
+  return NFLVERSE_TO_CANONICAL[nflverseAbbr] ?? nflverseAbbr;
+}
+
 // Conference + division by team abbreviation (ESPN abbreviations).
 // Used at seed time to enrich the ESPN teams feed.
 export const TEAM_DIVISIONS: Record<string, { conference: string; division: string }> = {

@@ -10,9 +10,9 @@ const fixture = JSON.parse(
 describe('normalizeScoreboard', () => {
   it('normalizes a final game with home/away, scores, and winner', () => {
     const games = normalizeScoreboard(fixture);
-    const final = games.find((g) => g.espnId === '401872656')!;
+    const final = games.find((g) => g.sourceId === '401872656')!;
     expect(final).toEqual({
-      espnId: '401872656',
+      sourceId: '401872656',
       week: 1,
       kickoffAt: '2026-09-10T00:20Z',
       homeAbbr: 'SEA',
@@ -26,7 +26,7 @@ describe('normalizeScoreboard', () => {
 
   it('normalizes a scheduled game with null scores and null winner', () => {
     const games = normalizeScoreboard(fixture);
-    const sched = games.find((g) => g.espnId === '401872657')!;
+    const sched = games.find((g) => g.sourceId === '401872657')!;
     expect(sched.status).toBe('SCHEDULED');
     expect(sched.homeScore).toBeNull();
     expect(sched.awayScore).toBeNull();

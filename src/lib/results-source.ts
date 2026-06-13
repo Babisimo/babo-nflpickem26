@@ -1,7 +1,7 @@
 export type GameStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'FINAL';
 
 export interface NormalizedGame {
-  espnId: string;
+  sourceId: string;
   week: number;
   kickoffAt: string; // ISO 8601
   homeAbbr: string;
@@ -31,7 +31,7 @@ export function normalizeScoreboard(json: any): NormalizedGame[] {
     const winner = comp.competitors.find((c: any) => c.winner === true);
 
     return {
-      espnId: String(event.id),
+      sourceId: String(event.id),
       week: Number(event.week.number),
       kickoffAt: event.date,
       homeAbbr: home.team.abbreviation,
