@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { auth, type AppSession } from '@/lib/auth';
 import { computeStandings } from '@/lib/scoring';
-import { seasonLockTime, arePicksOpen } from '@/lib/lock';
+import { weekLockTime, isWeekOpen } from '@/lib/lock';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,15 +22,31 @@ export default async function HomePage() {
   const [users, picks, games] = await Promise.all([
     db.user.findMany({ where: { isAdmin: false }, select: { id: true, name: true } }),
     db.pick.findMany({ select: { userId: true, gameId: true, pickedTeamId: true } }),
-    db.game.findMany({ select: { id: true, winnerTeamId: true, status: true, kickoffAt: true } }),
+    db.game.findMany({ select: { id: true, winnerTeamId: true, status: true, kickoffAt: true, week: true } }),
   ]);
 
   const results = games.map((g) => ({ gameId: g.id, winnerTeamId: g.winnerTeamId }));
   const standings = computeStandings(users, picks, results);
   const finals = games.filter((g) => g.status === 'FINAL').length;
-  const kickoffs = games.map((g) => g.kickoffAt);
-  const lock = seasonLockTime(kickoffs);
-  const open = arePicksOpen(new Date(), kickoffs);
+
+  // Next weekly lock: the earliest still-open week's lock time.
+  const now = new Date();
+  const byWeek = new Map<number, Date[]>();
+  for (const g of games) {
+    const arr = byWeek.get(g.week) ?? [];
+    arr.push(g.kickoffAt);
+    byWeek.set(g.week, arr);
+  }
+  let nextLock: Date | null = null;
+  let nextLockWeek: number | null = null;
+  for (const [week, ks] of byWeek) {
+    if (!isWeekOpen(now, ks)) continue;
+    const lt = weekLockTime(ks);
+    if (lt && (!nextLock || lt < nextLock)) {
+      nextLock = lt;
+      nextLockWeek = week;
+    }
+  }
   const leader = standings[0];
 
   return (
@@ -44,7 +60,7 @@ export default async function HomePage() {
           <h1 className="mt-4 max-w-2xl font-display text-5xl uppercase leading-[0.92] tracking-tight text-chalk sm:text-7xl">
             Pick every game.
             <br />
-            <span className="text-accent">Most correct wins.</span>
+            <span className="text-accent">Most points win.</span>
           </h1>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -53,15 +69,13 @@ export default async function HomePage() {
             </Link>
             <span
               className={`inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 font-mono text-[12px] uppercase tracking-[0.14em] ${
-                open ? 'text-accent' : 'text-faint'
+                nextLock ? 'text-accent' : 'text-faint'
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${open ? 'bg-accent animate-pulseGlow' : 'bg-faint'}`} />
-              {lock
-                ? open
-                  ? `Picks lock ${lock.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
-                  : 'Picks locked'
-                : 'Schedule pending'}
+              <span className={`h-1.5 w-1.5 rounded-full ${nextLock ? 'bg-accent animate-pulseGlow' : 'bg-faint'}`} />
+              {nextLock
+                ? `Week ${nextLockWeek} locks ${nextLock.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`
+                : 'Season complete'}
             </span>
           </div>
 

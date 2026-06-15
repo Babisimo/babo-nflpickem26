@@ -18,16 +18,16 @@
     min-height: 100vh;
   }
 
-  /* Atmospheric glows: a lime field-light from the top, a cold stadium haze below. */
+  /* Atmospheric glows: warm stadium lights (gold + red) over a deep field. */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
     z-index: -2;
     background:
-      radial-gradient(70% 55% at 12% -8%, rgba(200, 255, 60, 0.12), transparent 60%),
-      radial-gradient(80% 60% at 100% 8%, rgba(40, 120, 90, 0.16), transparent 55%),
-      radial-gradient(120% 80% at 50% 120%, rgba(20, 60, 110, 0.18), transparent 60%);
+      radial-gradient(70% 55% at 12% -8%, rgba(255, 203, 61, 0.10), transparent 60%),
+      radial-gradient(80% 60% at 100% 6%, rgba(230, 59, 48, 0.10), transparent 55%),
+      radial-gradient(130% 85% at 50% 120%, rgba(6, 32, 19, 0.55), transparent 62%);
     pointer-events: none;
   }
 
@@ -43,8 +43,8 @@
   }
 
   ::selection {
-    background: rgba(200, 255, 60, 0.85);
-    color: #0a0d10;
+    background: rgba(255, 203, 61, 0.9);
+    color: #0a2e1b;
   }
 
   ::-webkit-scrollbar {
@@ -52,15 +52,15 @@
     height: 11px;
   }
   ::-webkit-scrollbar-track {
-    background: #0b0f14;
+    background: #0a2e1b;
   }
   ::-webkit-scrollbar-thumb {
-    background: #202a35;
+    background: #1c6b42;
     border-radius: 999px;
-    border: 3px solid #0b0f14;
+    border: 3px solid #0a2e1b;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #2c3946;
+    background: #258052;
   }
 }
 
@@ -69,10 +69,10 @@
   .field-lines {
     background-image: repeating-linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.05) 0,
-      rgba(255, 255, 255, 0.05) 1px,
-      transparent 1px,
-      transparent 56px
+      rgba(255, 255, 255, 0.08) 0,
+      rgba(255, 255, 255, 0.08) 2px,
+      transparent 2px,
+      transparent 52px
     );
   }
 
@@ -86,9 +86,9 @@
   }
 
   .btn-accent {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5
-      font-mono text-[13px] font-semibold uppercase tracking-[0.12em] text-ink
-      transition-all duration-200 hover:shadow-glow hover:brightness-110
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5
+      font-mono text-[13px] font-semibold uppercase tracking-[0.12em] text-white
+      transition-all duration-200 hover:shadow-glowred hover:brightness-110
       active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
   }
 

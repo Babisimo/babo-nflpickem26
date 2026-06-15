@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { auth, type AppSession } from '@/lib/auth';
-import { arePicksOpen } from '@/lib/lock';
+import { isWeekOpen } from '@/lib/lock';
 
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
@@ -11,13 +11,18 @@ export async function savePick(gameId: string, pickedTeamId: string): Promise<Sa
   const userId = session?.user?.id;
   if (!userId) return { ok: false, error: 'Not signed in.' };
 
-  const games = await db.game.findMany({ select: { kickoffAt: true } });
-  if (!arePicksOpen(new Date(), games.map((g) => g.kickoffAt))) {
-    return { ok: false, error: 'Picks are locked.' };
-  }
-
   const game = await db.game.findUnique({ where: { id: gameId } });
   if (!game) return { ok: false, error: 'Unknown game.' };
+
+  // Enforce this game's week lock (9 AM ET on the week's first game day).
+  const weekGames = await db.game.findMany({
+    where: { week: game.week },
+    select: { kickoffAt: true },
+  });
+  if (!isWeekOpen(new Date(), weekGames.map((g) => g.kickoffAt))) {
+    return { ok: false, error: `Week ${game.week} is locked.` };
+  }
+
   if (pickedTeamId !== game.homeTeamId && pickedTeamId !== game.awayTeamId) {
     return { ok: false, error: 'Team not in this game.' };
   }

@@ -5,22 +5,27 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // "Sunday Field" — deep field green base with white yard lines.
         ink: {
-          DEFAULT: '#090c10',
-          900: '#0b0f14',
-          800: '#0f141b',
-          700: '#151c25',
-          600: '#1d2731',
+          DEFAULT: '#0e3b24',
+          900: '#0a2e1b',
+          800: '#114a2d',
+          700: '#165a37',
+          600: '#1c6b42',
         },
-        chalk: '#eef3f0',
-        muted: '#8691a0',
-        faint: '#5a6675',
+        chalk: '#f1faf3',
+        muted: '#a3cbb4',
+        faint: '#6f9a82',
         accent: {
-          DEFAULT: '#c8ff3c',
-          dim: '#9ad000',
+          DEFAULT: '#ffcb3d', // gold highlights
+          dim: '#e0a52a',
         },
-        gold: '#ffce4d',
-        line: 'rgba(255,255,255,0.08)',
+        gold: '#ffcb3d',
+        primary: {
+          DEFAULT: '#e63b30', // red CTAs / locked
+          dim: '#c0281f',
+        },
+        line: 'rgba(255,255,255,0.14)',
       },
       fontFamily: {
         display: ['var(--font-display)', 'Impact', 'sans-serif'],
@@ -28,8 +33,9 @@ const config: Config = {
         mono: ['var(--font-mono)', 'monospace'],
       },
       boxShadow: {
-        glow: '0 0 0 1px rgba(200,255,60,0.4), 0 0 30px -6px rgba(200,255,60,0.45)',
-        card: '0 1px 0 0 rgba(255,255,255,0.04) inset, 0 24px 48px -24px rgba(0,0,0,0.8)',
+        glow: '0 0 0 1px rgba(255,203,61,0.45), 0 0 26px -6px rgba(255,203,61,0.5)',
+        glowred: '0 0 22px -6px rgba(230,59,48,0.6)',
+        card: '0 1px 0 0 rgba(255,255,255,0.05) inset, 0 24px 48px -24px rgba(0,0,0,0.55)',
       },
       keyframes: {
         riseIn: {
