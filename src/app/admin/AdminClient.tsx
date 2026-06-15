@@ -34,6 +34,7 @@ export function AdminClient({
 }) {
   const [msg, setMsg] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [schedBusy, setSchedBusy] = useState(false);
   const [pending, startTransition] = useTransition();
 
   async function refresh() {
@@ -43,6 +44,20 @@ export function AdminClient({
     const json = await res.json();
     setRefreshing(false);
     setMsg(res.ok ? `Updated ${json.updated} games.` : `Error: ${json.error}`);
+  }
+
+  async function refreshScheduleNow() {
+    if (!confirm('Pull the latest schedule from nflverse? This updates game dates/times (flex changes) and adds any new games. Your players’ picks are kept.')) return;
+    setSchedBusy(true);
+    setMsg('Refreshing schedule…');
+    const res = await fetch('/api/admin/refresh-schedule', { method: 'POST' });
+    const json = await res.json();
+    setSchedBusy(false);
+    setMsg(
+      res.ok
+        ? `Schedule synced — ${json.changed} rescheduled, ${json.created} added${json.skipped ? `, ${json.skipped} skipped` : ''}.`
+        : `Error: ${json.error}`,
+    );
   }
 
   async function override(gameId: string, winnerTeamId: string) {
@@ -81,10 +96,13 @@ export function AdminClient({
             Admin
           </h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {msg && (
             <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent">{msg}</span>
           )}
+          <button onClick={refreshScheduleNow} disabled={schedBusy} className="btn-ghost">
+            {schedBusy ? 'Syncing…' : 'Refresh schedule'}
+          </button>
           <button onClick={refresh} disabled={refreshing} className="btn-accent">
             {refreshing ? 'Refreshing…' : 'Force refresh results'}
           </button>
