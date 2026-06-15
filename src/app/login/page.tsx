@@ -22,8 +22,14 @@ function LoginForm() {
       redirect: false,
     });
     setPending(false);
-    if (res?.error) setError('Invalid email or password.');
-    else router.push('/picks');
+    if (res?.error) {
+      setError('Invalid email or password.');
+    } else {
+      // Navigate, then refresh so the server-rendered root layout (header)
+      // re-reads the new session and shows the account name / Admin link.
+      router.push('/picks');
+      router.refresh();
+    }
   }
 
   return (
