@@ -85,8 +85,11 @@ export function PicksClient({
         </p>
       )}
 
-      {/* Week selector */}
-      <div className="reveal -mx-1 flex flex-wrap gap-1.5" style={{ animationDelay: '80ms' }}>
+      {/* Week selector — horizontal scroll strip (mobile-first) */}
+      <div
+        className="reveal no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+        style={{ animationDelay: '80ms' }}
+      >
         {weeks.map((w) => {
           const active = w.week === activeWeek;
           const done = w.games.every((g) => picks[g.id]);
@@ -94,7 +97,7 @@ export function PicksClient({
             <button
               key={w.week}
               onClick={() => setActiveWeek(w.week)}
-              className={`relative rounded-lg px-3 py-2 font-mono text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors ${
+              className={`relative shrink-0 rounded-lg px-3.5 py-2.5 font-mono text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors ${
                 active
                   ? 'bg-accent text-ink'
                   : 'border border-line bg-ink-800/60 text-muted hover:border-white/20 hover:text-chalk'

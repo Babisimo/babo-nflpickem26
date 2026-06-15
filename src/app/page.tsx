@@ -36,7 +36,7 @@ export default async function HomePage() {
   return (
     <div className="space-y-12">
       {/* Hero */}
-      <section className="reveal relative overflow-hidden rounded-3xl border border-line bg-ink-800/60 p-8 sm:p-12">
+      <section className="reveal relative overflow-hidden rounded-3xl border border-line bg-ink-800/60 p-6 sm:p-12">
         <div className="field-lines pointer-events-none absolute inset-0 opacity-60" />
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl animate-pulseGlow" />
         <div className="relative">

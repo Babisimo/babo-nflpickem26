@@ -4,6 +4,7 @@ import { Anton, Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import { auth, type AppSession } from '@/lib/auth';
 import { logout } from '@/app/actions/auth';
+import { MobileNav } from '@/app/MobileNav';
 
 const display = Anton({ subsets: ['latin'], weight: '400', variable: '--font-display' });
 const sans = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
@@ -70,13 +71,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </nav>
         </header>
 
-        <main className="mx-auto max-w-6xl px-5 py-10">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-7 sm:px-5 sm:py-10">{children}</main>
 
-        <footer className="mx-auto max-w-6xl px-5 pb-10 pt-6">
+        <footer className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-5 sm:pb-10">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-faint">
             2026 Season &middot; Data via nflverse
           </p>
         </footer>
+
+        {user && <MobileNav isAdmin={!!user.isAdmin} />}
       </body>
     </html>
   );
