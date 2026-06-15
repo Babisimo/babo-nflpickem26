@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { savePick } from '@/app/actions/picks';
 
 type Team = { id: string; abbr: string; name: string; color: string; logoUrl: string | null };
@@ -22,16 +22,30 @@ export function PicksClient({
   const [activeWeek, setActiveWeek] = useState(weeks[0]?.week ?? 1);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
 
   const pickedCount = useMemo(() => Object.keys(picks).length, [picks]);
+  const remaining = totalGames - pickedCount;
   const current = weeks.find((w) => w.week === activeWeek);
   const weekPicked = current?.games.filter((g) => picks[g.id]).length ?? 0;
   const pct = totalGames ? Math.round((pickedCount / totalGames) * 100) : 0;
+
+  // Warn before leaving if picks are still open and not all games are picked.
+  useEffect(() => {
+    if (!open || remaining <= 0) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [open, remaining]);
 
   async function choose(gameId: string, teamId: string) {
     if (!open) return;
     const prev = picks[gameId];
     setError(null);
+    setSaveMsg(null);
     setPicks((p) => ({ ...p, [gameId]: teamId }));
     setSaving(gameId);
     const res = await savePick(gameId, teamId);
@@ -47,8 +61,22 @@ export function PicksClient({
     }
   }
 
+  function onSave() {
+    if (remaining > 0) {
+      setSaveMsg({
+        tone: 'warn',
+        text: `Progress saved — ${remaining} game${remaining === 1 ? '' : 's'} still need a pick.`,
+      });
+      // Jump to the first week that still has an unpicked game.
+      const wk = weeks.find((w) => w.games.some((g) => !picks[g.id]));
+      if (wk) setActiveWeek(wk.week);
+    } else {
+      setSaveMsg({ tone: 'ok', text: "All picks saved — you're done!" });
+    }
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24">
       {/* Header + progress */}
       <div className="reveal flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -77,6 +105,16 @@ export function PicksClient({
       {!open && (
         <p className="reveal rounded-xl border border-gold/30 bg-gold/[0.07] px-4 py-3 font-mono text-[12px] uppercase tracking-[0.12em] text-gold">
           Picks are locked for the season &mdash; viewing only
+        </p>
+      )}
+      {open && remaining > 0 && (
+        <p className="reveal flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3 text-sm text-amber-200">
+          <span aria-hidden>&#9888;</span>
+          You haven&rsquo;t finished &mdash;{' '}
+          <strong className="font-semibold">
+            {remaining} of {totalGames}
+          </strong>{' '}
+          games still need a pick before the season locks.
         </p>
       )}
       {error && (
@@ -203,6 +241,38 @@ export function PicksClient({
           </li>
         ))}
       </ul>
+
+      {/* Sticky save / status bar */}
+      {open && (
+        <div className="sticky bottom-3 z-30 mt-4">
+          <div className="card flex items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              {saveMsg ? (
+                <p
+                  className={`truncate text-sm ${
+                    saveMsg.tone === 'ok' ? 'text-accent' : 'text-amber-200'
+                  }`}
+                >
+                  {saveMsg.text}
+                </p>
+              ) : (
+                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">
+                  {remaining > 0 ? (
+                    <>
+                      <span className="text-amber-200">{remaining}</span> left to pick
+                    </>
+                  ) : (
+                    <span className="text-accent">All games picked</span>
+                  )}
+                </p>
+              )}
+            </div>
+            <button onClick={onSave} className="btn-accent shrink-0">
+              {remaining > 0 ? 'Save progress' : 'Save picks'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

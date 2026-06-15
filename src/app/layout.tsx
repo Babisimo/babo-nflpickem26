@@ -4,7 +4,7 @@ import { Anton, Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import { auth, type AppSession } from '@/lib/auth';
 import { logout } from '@/app/actions/auth';
-import { MobileNav } from '@/app/MobileNav';
+import { MobileMenu } from '@/app/MobileMenu';
 
 const display = Anton({ subsets: ['latin'], weight: '400', variable: '--font-display' });
 const sans = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
@@ -53,14 +53,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="ml-auto flex items-center gap-4">
               {user ? (
                 <>
-                  <span className="hidden font-mono text-[12px] uppercase tracking-[0.14em] text-faint md:inline">
-                    {user.name}
-                  </span>
-                  <form action={logout}>
-                    <button className="font-mono text-[12px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-accent">
-                      Sign out
-                    </button>
-                  </form>
+                  <div className="hidden items-center gap-4 sm:flex">
+                    <span className="font-mono text-[12px] uppercase tracking-[0.14em] text-faint">
+                      {user.name}
+                    </span>
+                    <form action={logout}>
+                      <button className="font-mono text-[12px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-accent">
+                        Sign out
+                      </button>
+                    </form>
+                  </div>
+                  <MobileMenu name={user.name ?? 'Account'} isAdmin={!!user.isAdmin} />
                 </>
               ) : (
                 <Link href="/login" className="btn-accent px-4 py-2">
@@ -73,13 +76,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         <main className="mx-auto max-w-6xl px-4 py-7 sm:px-5 sm:py-10">{children}</main>
 
-        <footer className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-5 sm:pb-10">
+        <footer className="mx-auto max-w-6xl px-4 pb-10 pt-6 sm:px-5">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-faint">
             2026 Season &middot; Data via nflverse
           </p>
         </footer>
-
-        {user && <MobileNav isAdmin={!!user.isAdmin} />}
       </body>
     </html>
   );
