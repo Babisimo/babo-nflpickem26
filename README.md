@@ -33,7 +33,9 @@ Sleek, mobile-first dark UI; data pulled from [nflverse](https://github.com/nflv
 3. Set env vars: `AUTH_SECRET`, `ADMIN_EMAIL`, `CRON_SECRET`.
 4. After the first deploy, seed the production DB:
    `npm run db:seed` with prod `DATABASE_URL`/`DIRECT_URL` (or a one-off Vercel job).
-5. The cron in `vercel.json` pulls results every 3 hours on production.
+5. The cron in `vercel.json` pulls results once daily at 12:00 UTC (Vercel
+   Hobby allows one cron run per day). On Pro you can increase the frequency,
+   e.g. `0 */3 * * *` for every 3 hours.
 
 ## Architecture
 - `src/lib/nflverse-source.ts` — nflverse fetch + normalize (schedule, results, team colors/logos)
