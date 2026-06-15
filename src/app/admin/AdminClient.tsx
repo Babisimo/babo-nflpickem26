@@ -35,6 +35,7 @@ export function AdminClient({
   const [msg, setMsg] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [schedBusy, setSchedBusy] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [pending, startTransition] = useTransition();
 
   async function refresh() {
@@ -107,6 +108,51 @@ export function AdminClient({
             {refreshing ? 'Refreshing…' : 'Force refresh results'}
           </button>
         </div>
+      </div>
+
+      {/* Mobile-only help: what each admin button does */}
+      <div className="reveal sm:hidden" style={{ animationDelay: '40ms' }}>
+        <button
+          onClick={() => setShowHelp((v) => !v)}
+          aria-expanded={showHelp}
+          className="flex w-full items-center justify-between rounded-xl border border-line bg-ink-800/60 px-4 py-3"
+        >
+          <span className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.14em] text-chalk">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 11v5M12 7.5h.01" strokeLinecap="round" />
+            </svg>
+            What do these buttons do?
+          </span>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-4 w-4 text-faint transition-transform ${showHelp ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {showHelp && (
+          <ul className="mt-2 space-y-3 rounded-xl border border-line bg-ink-800/40 p-4">
+            {[
+              { term: 'Refresh schedule', desc: 'Pulls the latest 2026 schedule from nflverse — e.g. flex-scheduled date/time changes — and adds any new games. Players’ picks are kept.' },
+              { term: 'Force refresh results', desc: 'Pulls the latest scores and winners and updates the standings. This also runs automatically once a day.' },
+              { term: 'Make admin / Demote', desc: 'Give or remove admin access for a player. The last admin can’t be demoted.' },
+              { term: 'Remove', desc: 'Deletes a player and all of their picks. You can’t remove yourself or the last admin.' },
+              { term: 'Set winner (team buttons)', desc: 'In the Games list, tap a team to manually override who won that game if the auto result is wrong.' },
+            ].map((h) => (
+              <li key={h.term} className="flex flex-col gap-1">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-accent">
+                  {h.term}
+                </span>
+                <span className="text-sm text-muted">{h.desc}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Users */}
