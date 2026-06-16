@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { removeUser, setAdmin } from '@/app/actions/admin';
+import { removeUser, setAdmin, resetUserPassword } from '@/app/actions/admin';
 
 type GameRow = {
   id: string;
@@ -79,6 +79,14 @@ export function AdminClient({
     });
   }
 
+  function onResetPassword(u: UserRow) {
+    if (!confirm(`Reset ${u.name}'s password? They'll need the new temporary password to log in.`)) return;
+    startTransition(async () => {
+      const res = await resetUserPassword(u.id);
+      setMsg(res.ok ? `Temp password for ${u.name}: ${res.tempPassword} — share it with them.` : res.error);
+    });
+  }
+
   function onToggleAdmin(u: UserRow) {
     startTransition(async () => {
       const res = await setAdmin(u.id, !u.isAdmin);
@@ -141,6 +149,7 @@ export function AdminClient({
               { term: 'Refresh schedule', desc: 'Pulls the latest 2026 schedule from nflverse — e.g. flex-scheduled date/time changes — and adds any new games. Players’ picks are kept.' },
               { term: 'Force refresh results', desc: 'Pulls the latest scores and winners and updates the standings. This also runs automatically once a day.' },
               { term: 'Make admin / Demote', desc: 'Give or remove admin access for a player. The last admin can’t be demoted.' },
+              { term: 'Reset password', desc: 'Generates a new temporary password for a player who is locked out. Share it with them; they can change it from their Account page.' },
               { term: 'Remove', desc: 'Deletes a player and all of their picks. You can’t remove yourself or the last admin.' },
               { term: 'Set winner (team buttons)', desc: 'In the Games list, tap a team to manually override who won that game if the auto result is wrong.' },
             ].map((h) => (
@@ -188,6 +197,13 @@ export function AdminClient({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onResetPassword(u)}
+                    disabled={pending}
+                    className="btn-ghost px-3 py-1.5 text-[11px] disabled:opacity-30"
+                  >
+                    Reset password
+                  </button>
                   <button
                     onClick={() => onToggleAdmin(u)}
                     disabled={pending || isSelf || lastAdmin}

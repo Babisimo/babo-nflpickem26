@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { auth, type AppSession } from '@/lib/auth';
 import { canRemoveUser, canSetAdmin, type GuardResult } from '@/lib/admin-guard';
+import { hashPassword, generateTempPassword } from '@/lib/auth-helpers';
 
 async function requireAdmin(): Promise<AppSession | null> {
   const session = (await auth()) as AppSession | null;
@@ -43,4 +44,24 @@ export async function setAdmin(targetUserId: string, makeAdmin: boolean): Promis
   revalidatePath('/admin');
   revalidatePath('/');
   return { ok: true };
+}
+
+/** Reset a user's password to a generated temp string. Admin-only.
+ *  Returns the plaintext once so the admin can relay it. */
+export async function resetUserPassword(
+  targetUserId: string,
+): Promise<{ ok: true; tempPassword: string } | { ok: false; error: string }> {
+  const session = await requireAdmin();
+  if (!session) return { ok: false, error: 'Forbidden.' };
+
+  const user = await db.user.findUnique({ where: { id: targetUserId } });
+  if (!user) return { ok: false, error: 'User not found.' };
+
+  const tempPassword = generateTempPassword();
+  await db.user.update({
+    where: { id: targetUserId },
+    data: { passwordHash: await hashPassword(tempPassword) },
+  });
+  revalidatePath('/admin');
+  return { ok: true, tempPassword };
 }
