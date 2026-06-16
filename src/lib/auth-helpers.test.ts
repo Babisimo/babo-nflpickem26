@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { generateTempPassword } from './auth-helpers';
+import { hashPassword, verifyPassword, generateTempPassword } from './auth-helpers';
+
+describe('password helpers', () => {
+  it('hashes and verifies a correct password', async () => {
+    const hash = await hashPassword('s3cret!');
+    expect(hash).not.toBe('s3cret!');
+    expect(await verifyPassword('s3cret!', hash)).toBe(true);
+  });
+  it('rejects a wrong password', async () => {
+    const hash = await hashPassword('s3cret!');
+    expect(await verifyPassword('wrong', hash)).toBe(false);
+  });
+});
 
 describe('generateTempPassword', () => {
   it('matches the Word-XXXX shape and is at least 8 chars', () => {
