@@ -34,3 +34,26 @@ export async function savePick(gameId: string, pickedTeamId: string): Promise<Sa
   });
   return { ok: true };
 }
+
+export async function saveWeekPrediction(week: number, predictedTotal: number): Promise<SaveResult> {
+  const session = (await auth()) as AppSession | null;
+  const userId = session?.user?.id;
+  if (!userId) return { ok: false, error: 'Not signed in.' };
+
+  if (!Number.isInteger(predictedTotal) || predictedTotal < 0 || predictedTotal > 150) {
+    return { ok: false, error: 'Enter a whole number from 0 to 150.' };
+  }
+
+  const weekGames = await db.game.findMany({ where: { week }, select: { kickoffAt: true } });
+  if (weekGames.length === 0) return { ok: false, error: 'Unknown week.' };
+  if (!isWeekOpen(new Date(), weekGames.map((g) => g.kickoffAt))) {
+    return { ok: false, error: `Week ${week} is locked.` };
+  }
+
+  await db.weekPrediction.upsert({
+    where: { userId_week: { userId, week } },
+    create: { userId, week, predictedTotal },
+    update: { predictedTotal },
+  });
+  return { ok: true };
+}
