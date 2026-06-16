@@ -22,6 +22,7 @@ model User {
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
   picks        Pick[]
+  weekPredictions WeekPrediction[]
 }
 
 model Team {
@@ -70,4 +71,16 @@ model Pick {
   updatedAt    DateTime @updatedAt
 
   @@unique([userId, gameId])
+}
+
+model WeekPrediction {
+  id             String   @id @default(cuid())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  week           Int
+  predictedTotal Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, week])
 }
