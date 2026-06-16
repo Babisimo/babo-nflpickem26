@@ -13,6 +13,7 @@ export function MobileMenu({ name, isAdmin }: { name: string; isAdmin: boolean }
     { href: '/', label: 'Standings' },
     { href: '/picks', label: 'My Picks' },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
+    { href: '/account', label: 'Account' },
   ];
 
   return (

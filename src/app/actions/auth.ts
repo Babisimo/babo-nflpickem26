@@ -2,8 +2,8 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { signOut } from '@/lib/auth';
-import { hashPassword } from '@/lib/auth-helpers';
+import { auth, signOut, type AppSession } from '@/lib/auth';
+import { hashPassword, verifyPassword } from '@/lib/auth-helpers';
 
 /** Sign the current user out and return to the standings home. */
 export async function logout(): Promise<void> {
@@ -42,4 +42,31 @@ export async function signup(_prev: SignupState, formData: FormData): Promise<Si
     },
   });
   return undefined; // success; UI redirects to /login
+}
+
+export type ChangePasswordState = { error?: string; ok?: boolean } | undefined;
+
+export async function changePassword(
+  _prev: ChangePasswordState,
+  formData: FormData,
+): Promise<ChangePasswordState> {
+  const session = (await auth()) as AppSession | null;
+  const userId = session?.user?.id;
+  if (!userId) return { error: 'Not signed in.' };
+
+  const current = String(formData.get('currentPassword') ?? '');
+  const next = String(formData.get('newPassword') ?? '');
+  const confirm = String(formData.get('confirmPassword') ?? '');
+
+  if (next.length < 8) return { error: 'New password must be at least 8 characters.' };
+  if (next !== confirm) return { error: 'New passwords do not match.' };
+
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) return { error: 'Account not found.' };
+  if (!(await verifyPassword(current, user.passwordHash))) {
+    return { error: 'Current password is incorrect.' };
+  }
+
+  await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(next) } });
+  return { ok: true };
 }

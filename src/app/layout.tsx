@@ -48,6 +48,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <NavLink href="/">Standings</NavLink>
               <NavLink href="/picks">My Picks</NavLink>
               {user?.isAdmin && <NavLink href="/admin">Admin</NavLink>}
+              {user && <NavLink href="/account">Account</NavLink>}
             </div>
 
             <div className="ml-auto flex items-center gap-4">
