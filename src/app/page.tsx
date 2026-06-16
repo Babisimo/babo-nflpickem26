@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { auth, type AppSession } from '@/lib/auth';
 import { computeStandings } from '@/lib/scoring';
+import { finalGameOfWeek, tiebreakErrorByUser } from '@/lib/tiebreaker';
 import { weekLockTime, isWeekOpen } from '@/lib/lock';
 
 export const dynamic = 'force-dynamic';
@@ -19,14 +20,41 @@ const RANK_ACCENT = ['text-gold', 'text-chalk', 'text-[#cd8b5e]'];
 export default async function HomePage() {
   const session = (await auth()) as AppSession | null;
 
-  const [users, picks, games] = await Promise.all([
+  const [users, picks, games, predictions] = await Promise.all([
     db.user.findMany({ where: { isAdmin: false }, select: { id: true, name: true } }),
     db.pick.findMany({ select: { userId: true, gameId: true, pickedTeamId: true } }),
-    db.game.findMany({ select: { id: true, winnerTeamId: true, status: true, kickoffAt: true, week: true } }),
+    db.game.findMany({
+      select: {
+        id: true,
+        winnerTeamId: true,
+        status: true,
+        kickoffAt: true,
+        week: true,
+        homeScore: true,
+        awayScore: true,
+      },
+    }),
+    db.weekPrediction.findMany({ select: { userId: true, week: true, predictedTotal: true } }),
   ]);
 
   const results = games.map((g) => ({ gameId: g.id, winnerTeamId: g.winnerTeamId }));
-  const standings = computeStandings(users, picks, results);
+
+  // Completed tiebreaker weeks: the week's final game is FINAL with both scores.
+  const tbByWeek = new Map<number, typeof games>();
+  for (const g of games) {
+    const arr = tbByWeek.get(g.week) ?? [];
+    arr.push(g);
+    tbByWeek.set(g.week, arr);
+  }
+  const completedWeeks: { week: number; actualTotal: number }[] = [];
+  for (const [week, gs] of tbByWeek) {
+    const fg = finalGameOfWeek(gs);
+    if (fg && fg.status === 'FINAL' && fg.homeScore != null && fg.awayScore != null) {
+      completedWeeks.push({ week, actualTotal: fg.homeScore + fg.awayScore });
+    }
+  }
+  const errors = tiebreakErrorByUser(users.map((u) => u.id), completedWeeks, predictions);
+  const standings = computeStandings(users, picks, results, errors);
   const finals = games.filter((g) => g.status === 'FINAL').length;
 
   // Next weekly lock: the earliest still-open week's lock time.
