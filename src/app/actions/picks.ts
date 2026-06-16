@@ -14,7 +14,7 @@ export async function savePick(gameId: string, pickedTeamId: string): Promise<Sa
   const game = await db.game.findUnique({ where: { id: gameId } });
   if (!game) return { ok: false, error: 'Unknown game.' };
 
-  // Enforce this game's week lock (9 AM ET on the week's first game day).
+  // Enforce this game's week lock (4 hours before the week's first kickoff).
   const weekGames = await db.game.findMany({
     where: { week: game.week },
     select: { kickoffAt: true },
