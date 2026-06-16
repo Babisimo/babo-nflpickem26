@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { savePick } from '@/app/actions/picks';
+import { savePick, saveWeekPrediction } from '@/app/actions/picks';
 
 type Team = { id: string; abbr: string; name: string; color: string; logoUrl: string | null };
 type Game = { id: string; home: Team; away: Team; kickoffAt: string };
-type Week = { week: number; open: boolean; lockAt: string | null; games: Game[] };
+type Tiebreaker = { gameId: string; label: string; final: boolean; actualTotal: number | null };
+type Week = { week: number; open: boolean; lockAt: string | null; games: Game[]; tiebreaker: Tiebreaker | null };
 
 /** Live countdown to a week's lock time. Renders nothing meaningful until mounted (avoids hydration mismatch). */
 function Countdown({ lockAt }: { lockAt: string }) {
@@ -56,14 +57,20 @@ function Countdown({ lockAt }: { lockAt: string }) {
 export function PicksClient({
   weeks,
   initialPicks,
+  initialPredictions,
   totalGames,
 }: {
   weeks: Week[];
   initialPicks: Record<string, string>;
+  initialPredictions: Record<number, number>;
   totalGames: number;
 }) {
   const firstOpen = weeks.find((w) => w.open);
   const [picks, setPicks] = useState<Record<string, string>>(initialPicks);
+  const [predictions, setPredictions] = useState<Record<number, string>>(() =>
+    Object.fromEntries(Object.entries(initialPredictions).map(([w, v]) => [w, String(v)])),
+  );
+  const [tbSaving, setTbSaving] = useState(false);
   const [activeWeek, setActiveWeek] = useState(firstOpen?.week ?? weeks[0]?.week ?? 1);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +105,19 @@ export function PicksClient({
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [weekOpen, weekRemaining]);
+
+  async function saveTiebreaker(week: number, value: string) {
+    const n = Number(value);
+    if (value.trim() === '' || !Number.isInteger(n) || n < 0 || n > 150) {
+      setError('Tiebreaker must be a whole number from 0 to 150.');
+      return;
+    }
+    setError(null);
+    setTbSaving(true);
+    const res = await saveWeekPrediction(week, n);
+    setTbSaving(false);
+    if (!res.ok) setError(res.error);
+  }
 
   async function choose(gameId: string, teamId: string) {
     if (!weekOpen) return;
@@ -326,6 +346,53 @@ export function PicksClient({
           </li>
         ))}
       </ul>
+
+      {current?.tiebreaker && (
+        <div className="reveal card p-5">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-faint">
+            Week {activeWeek} Tiebreaker
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            Predict the <span className="text-chalk">combined final score</span> of the last game:{' '}
+            <span className="font-display uppercase tracking-wide text-chalk">{current.tiebreaker.label}</span>
+          </p>
+          {weekOpen ? (
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={150}
+                placeholder="—"
+                className="field-input w-28"
+                value={predictions[activeWeek] ?? ''}
+                onChange={(e) => setPredictions((p) => ({ ...p, [activeWeek]: e.target.value }))}
+                onBlur={(e) => saveTiebreaker(activeWeek, e.target.value)}
+                disabled={tbSaving}
+              />
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-faint">
+                total points
+              </span>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1">
+              <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-muted">
+                Your prediction: <span className="text-chalk">{predictions[activeWeek] ?? '—'}</span>
+              </p>
+              {current.tiebreaker.final && current.tiebreaker.actualTotal != null && (
+                <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-muted">
+                  Actual: <span className="text-accent">{current.tiebreaker.actualTotal}</span>
+                  {predictions[activeWeek] != null && predictions[activeWeek] !== '' && (
+                    <span className="ml-2 text-faint">
+                      (off by {Math.abs(Number(predictions[activeWeek]) - current.tiebreaker.actualTotal)})
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sticky save / status bar */}
       {weekOpen && (
