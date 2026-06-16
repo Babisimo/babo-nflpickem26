@@ -34,7 +34,7 @@ npm run dev          # http://localhost:3000
 ```
 
 Other scripts:
-- `npm test` — run all Vitest tests (currently 31 passing)
+- `npm test` — run all Vitest tests (currently 41 passing)
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run build` — `prisma generate && next build`
 
@@ -47,7 +47,8 @@ Other scripts:
 
 ### Data layer
 - `src/lib/db.ts` — Prisma client singleton.
-- `prisma/schema.prisma` — models: `User`, `Team`, `Game`, `Pick`, enum `GameStatus`.
+- `prisma/schema.prisma` — models: `User`, `Team`, `Game`, `Pick`, `WeekPrediction`, enum `GameStatus`.
+  - `WeekPrediction` holds each player's per-week combined-score guess for the tiebreaker (`@@unique([userId, week])`, cascade-deletes with the user).
   - `Team.sourceId` / `Game.sourceId` hold the **nflverse** id (renamed from `espnId`).
   - `Team.logoUrl` holds the ESPN-CDN team logo from nflverse.
 - `prisma/seed.ts` — seeds teams (name/colors/logos) + the full season from nflverse.
@@ -65,11 +66,14 @@ Other scripts:
   Used by the admin "Refresh schedule" button.
 
 ### Logic
-- `src/lib/lock.ts` — **per-week locking.** `weekLockTime(weekKickoffs)` = 9:00 AM ET on
-  the calendar date (ET) of that week's first game; `isWeekOpen(now, weekKickoffs)`.
-  Tested in `lock.test.ts`.
+- `src/lib/lock.ts` — **per-week locking.** `weekLockTime(weekKickoffs)` = 4 hours before
+  that week's earliest kickoff; `isWeekOpen(now, weekKickoffs)`. Tested in `lock.test.ts`.
 - `src/lib/scoring.ts` — `computeStandings()`: pure scoring + standard-competition ranking.
-  Counts correct picks across **all** games (points carry over the whole season). Tested.
+  Counts correct picks across **all** games (points carry over the whole season); ties are
+  broken by the **tiebreaker error** (optional 4th arg). Tested.
+- `src/lib/tiebreaker.ts` — `finalGameOfWeek()` (a week's last game by kickoff) +
+  `tiebreakErrorByUser()` (Σ |predicted − actual| combined-score error across completed
+  weeks, with a per-missing-week penalty). Pure, tested in `tiebreaker.test.ts`.
 - `src/lib/admin-guard.ts` — `canRemoveUser` / `canSetAdmin` guardrails (no self-action,
   no removing/demoting the last admin). Tested in `admin-guard.test.ts`.
 - `src/lib/auth.ts` — next-auth config + the `AppSession` type (cast `auth()` results to it).
@@ -82,14 +86,17 @@ Other scripts:
   the next week to lock.
 - `src/app/standings/page.tsx` — redirects to `/` (kept for old links).
 - `src/app/picks/page.tsx` + `PicksClient.tsx` — the weekly picks board: per-week open
-  state, **live countdown timer**, locked-week view-only, Save button + unfinished warnings.
+  state, **live countdown timer**, locked-week view-only, Save button + unfinished warnings,
+  plus a per-week **tiebreaker** combined-score input (auto-saved, lock-enforced).
 - `src/app/login/page.tsx`, `src/app/signup/page.tsx` — auth forms.
+- `src/app/account/page.tsx` — signed-in users change their own password (`changePassword`).
 - `src/app/admin/page.tsx` + `AdminClient.tsx` — admin: Players panel (remove / make-admin /
-  demote), Games table (set-winner overrides), Refresh schedule, Force refresh results,
-  and a **mobile-only help box** explaining each button.
+  demote / **reset password** → one-time temp string), Games table (set-winner overrides),
+  Refresh schedule, Force refresh results, and a **mobile-only help box** explaining each button.
 - `src/app/MobileMenu.tsx` — mobile hamburger nav drawer.
-- `src/app/actions/*` — server actions: `auth.ts` (signup, logout), `picks.ts` (savePick,
-  enforces the week lock server-side), `admin.ts` (removeUser, setAdmin).
+- `src/app/actions/*` — server actions: `auth.ts` (signup, logout, changePassword), `picks.ts`
+  (savePick, saveWeekPrediction — both enforce the week lock server-side), `admin.ts`
+  (removeUser, setAdmin, resetUserPassword).
 - `src/app/api/admin/refresh` — POST, admin-only, results refresh.
 - `src/app/api/admin/refresh-schedule` — POST, admin-only, schedule refresh.
 - `src/app/api/admin/override` — POST, admin-only, manual winner override.
@@ -158,11 +165,17 @@ Other scripts:
 
 ## 7. Key behaviors
 
-- **Locking:** each week locks at **9:00 AM ET on the day of that week's first game**
-  (usually Thursday; the 2026 opener is a Wednesday, handled correctly). Future weeks stay
-  open. Enforced both in the UI and server-side in `savePick`.
+- **Locking:** each week locks **4 hours before that week's first kickoff**. Future weeks stay
+  open. Enforced both in the UI and server-side in `savePick` / `saveWeekPrediction`.
 - **Scoring:** +1 per correct winner pick; ties (no winner) score nothing. Standings rank by
   total correct (cumulative all season). Standard competition ranking (1,1,3,…).
+- **Tiebreaker:** each week, players predict the combined final score of that week's last game
+  (`saveWeekPrediction`). Season-end ties are broken by the smallest total error
+  (Σ |predicted − actual|) over completed weeks; a week with no prediction is penalized so a
+  blank never helps. Pure logic in `tiebreaker.ts`; applied as `computeStandings`' 4th arg.
+- **Password reset:** an admin can reset any player's password to a one-time temp string
+  (Players panel → **Reset password**, shown once to relay out-of-band); players change their
+  own at **`/account`**. No email provider is involved.
 - **Results:** `/api/cron/results` runs **once daily at 12:00 UTC** (`vercel.json` —
   Hobby plan allows one cron/day). Admin can "Force refresh results" anytime.
 - **Schedule:** seeded once; refreshed only via the admin **"Refresh schedule"** button
@@ -190,7 +203,8 @@ Other scripts:
   live scores, swap/add a provider behind the `NormalizedGame` interface (the ESPN provider
   in `results-source.ts` already does live scores).
 - nflverse also carries **betting spreads/lines** (unused) — could power a spread-pick mode.
-- Tiebreakers / weekly winners / pick reminders / email notifications are not built.
+- Weekly winners / pick reminders / email notifications are not built. (The combined-score
+  **tiebreaker** and **admin password reset** are now built — see §7.)
 - Glue code (`results-apply`, `schedule-apply`, `seed`) is intentionally untested
   (network + DB); the pure logic it depends on is unit-tested. Could add integration tests.
 
@@ -204,7 +218,7 @@ Other scripts:
 
 ```bash
 npm run dev            # local dev
-npm test               # vitest (31 tests)
+npm test               # vitest (41 tests)
 npm run typecheck      # tsc --noEmit
 npm run build          # prisma generate && next build
 npm run db:push        # push schema to DB
