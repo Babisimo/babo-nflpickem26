@@ -15,6 +15,7 @@ export interface RankedUser {
   userId: string;
   name: string;
   correct: number;
+  tiebreakError: number;
   rank: number;
 }
 
@@ -22,6 +23,7 @@ export function computeStandings(
   users: ScoringUser[],
   picks: UserPick[],
   results: GameResult[],
+  tiebreakErrors: Map<string, number> = new Map(),
 ): RankedUser[] {
   const winnerByGame = new Map<string, string | null>();
   for (const r of results) winnerByGame.set(r.gameId, r.winnerTeamId);
@@ -37,13 +39,27 @@ export function computeStandings(
   }
 
   const scored = users
-    .map((u) => ({ userId: u.id, name: u.name, correct: correctByUser.get(u.id) ?? 0 }))
-    .sort((a, b) => b.correct - a.correct || a.name.localeCompare(b.name));
+    .map((u) => ({
+      userId: u.id,
+      name: u.name,
+      correct: correctByUser.get(u.id) ?? 0,
+      tiebreakError: tiebreakErrors.get(u.id) ?? 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.correct - a.correct ||
+        a.tiebreakError - b.tiebreakError ||
+        a.name.localeCompare(b.name),
+    );
 
-  // Standard competition ranking (1, 1, 3, ...).
+  // Standard competition ranking (1, 1, 3, ...). Two rows share a rank only when
+  // both correct count AND tiebreak error are equal.
   const ranked: RankedUser[] = [];
   scored.forEach((row, i) => {
-    const rank = i > 0 && scored[i - 1].correct === row.correct ? ranked[i - 1].rank : i + 1;
+    const prev = scored[i - 1];
+    const tiedWithPrev =
+      i > 0 && prev.correct === row.correct && prev.tiebreakError === row.tiebreakError;
+    const rank = tiedWithPrev ? ranked[i - 1].rank : i + 1;
     ranked.push({ ...row, rank });
   });
   return ranked;

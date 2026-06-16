@@ -44,4 +44,29 @@ describe('computeStandings', () => {
     const s = computeStandings([{ id: 'u9', name: 'Zed' }], [], results);
     expect(s[0]).toMatchObject({ userId: 'u9', correct: 0, rank: 1 });
   });
+
+  it('breaks ties by smaller tiebreak error and ranks them apart', () => {
+    // u1 and u3 both have 2 correct. u3 is more accurate (lower error).
+    const errors = new Map<string, number>([
+      ['u1', 10],
+      ['u3', 3],
+    ]);
+    const s = computeStandings(users, picks, results, errors);
+    const byUser = Object.fromEntries(s.map((r) => [r.userId, r.rank]));
+    expect(byUser['u3']).toBe(1); // most accurate of the tied pair
+    expect(byUser['u1']).toBe(2);
+    expect(byUser['u2']).toBe(3); // only 1 correct
+  });
+
+  it('keeps a shared rank when correct AND tiebreak error are equal', () => {
+    const errors = new Map<string, number>([
+      ['u1', 7],
+      ['u3', 7],
+    ]);
+    const s = computeStandings(users, picks, results, errors);
+    const byUser = Object.fromEntries(s.map((r) => [r.userId, r.rank]));
+    expect(byUser['u1']).toBe(1);
+    expect(byUser['u3']).toBe(1);
+    expect(byUser['u2']).toBe(3);
+  });
 });
