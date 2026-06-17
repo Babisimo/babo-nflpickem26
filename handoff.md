@@ -34,7 +34,7 @@ npm run dev          # http://localhost:3000
 ```
 
 Other scripts:
-- `npm test` — run all Vitest tests (currently 49 passing)
+- `npm test` — run all Vitest tests (currently 62 passing)
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run build` — `prisma generate && next build`
 
@@ -47,7 +47,8 @@ Other scripts:
 
 ### Data layer
 - `src/lib/db.ts` — Prisma client singleton.
-- `prisma/schema.prisma` — models: `User`, `Team`, `Game`, `Pick`, `WeekPrediction`, enum `GameStatus`.
+- `prisma/schema.prisma` — models: `User`, `Team`, `Game`, `Pick`, `WeekPrediction`, `PasswordResetToken`, enum `GameStatus`.
+  - `User` has a public `username` (`@unique`, nullable) + `firstName`/`lastName`; `name` stays as the denormalized "First Last".
   - `WeekPrediction` holds each player's per-week combined-score guess for the tiebreaker (`@@unique([userId, week])`, cascade-deletes with the user).
   - `Team.sourceId` / `Game.sourceId` hold the **nflverse** id (renamed from `espnId`).
   - `Team.logoUrl` holds the ESPN-CDN team logo from nflverse.
@@ -82,6 +83,10 @@ Other scripts:
   `isResetTokenValid`, `RESET_TOKEN_TTL_MS` (1h). Pure, tested in `password-reset.test.ts`.
 - `src/lib/email.ts` — Nodemailer Gmail-SMTP transporter + `sendPasswordResetEmail`. Reads
   `GMAIL_USER`/`GMAIL_APP_PASSWORD` (see §4). `server-only`.
+- `src/lib/profile.ts` — identity helpers: `validateUsername` (3–20 `[A-Za-z0-9_]`), `validateName`
+  (1–50), `isProfileComplete`, `fullName`. Pure, tested in `profile.test.ts`.
+- `src/lib/league-picks.ts` — `weeklyCorrectByUser(picks, winnerByGame)` for the shared-picks
+  grid. Pure, tested in `league-picks.test.ts`.
 
 ### Pages / routes (App Router)
 - `src/app/layout.tsx` — root layout: session-aware header (desktop nav + `MobileMenu`),
@@ -89,18 +94,25 @@ Other scripts:
 - `src/app/page.tsx` — **home = the standings/leaderboard** (admins excluded). Hero shows
   the next week to lock.
 - `src/app/standings/page.tsx` — redirects to `/` (kept for old links).
-- `src/app/picks/page.tsx` + `PicksClient.tsx` — the weekly picks board: per-week open
-  state, **live countdown timer**, locked-week view-only, Save button + unfinished warnings,
-  plus a per-week **tiebreaker** combined-score input (auto-saved, lock-enforced).
-- `src/app/login/page.tsx`, `src/app/signup/page.tsx` — auth forms (login has a **Forgot password?** link).
+- `src/app/picks/page.tsx` + `PicksClient.tsx` — the weekly picks board: open weeks show your
+  pick buttons + **live countdown** + per-week **tiebreaker** input; **locked weeks show
+  everyone's picks** as a grid (`LeaguePicksGrid.tsx`, users × games, green/red once final).
+  Other players' picks are only sent for locked weeks. Redirects incomplete profiles to
+  `/complete-profile`.
+- `src/app/login/page.tsx`, `src/app/signup/page.tsx` — auth forms; login has a **Forgot
+  password?** link; signup collects **username + first/last name**.
+- `src/app/complete-profile/page.tsx` (+ `CompleteProfileForm.tsx`) — one-time form for legacy
+  users to set username + first/last; the authenticated pages (`/picks`, `/account`, `/admin`)
+  redirect here until the profile is complete.
 - `src/app/forgot-password/page.tsx` — request a reset link by email (generic response, no enumeration).
 - `src/app/reset-password/page.tsx` — set a new password from the emailed `?token=` link.
-- `src/app/account/page.tsx` — signed-in users change their own password (`changePassword`).
+- `src/app/account/page.tsx` (+ `AccountForm.tsx`) — signed-in users change their own password
+  (`changePassword`); server-guarded for auth + profile completeness.
 - `src/app/admin/page.tsx` + `AdminClient.tsx` — admin: Players panel (remove / make-admin /
   demote / **reset password** → one-time temp string), Games table (set-winner overrides),
   Refresh schedule, Force refresh results, and a **mobile-only help box** explaining each button.
 - `src/app/MobileMenu.tsx` — mobile hamburger nav drawer.
-- `src/app/actions/*` — server actions: `auth.ts` (signup, logout, changePassword), `picks.ts`
+- `src/app/actions/*` — server actions: `auth.ts` (signup, logout, changePassword, completeProfile), `picks.ts`
   (savePick, saveWeekPrediction — both enforce the week lock server-side), `admin.ts`
   (removeUser, setAdmin, resetUserPassword), `password-reset.ts` (requestPasswordReset, resetPassword).
 - `src/app/api/admin/refresh` — POST, admin-only, results refresh.
@@ -178,6 +190,13 @@ Other scripts:
   open. Enforced both in the UI and server-side in `savePick` / `saveWeekPrediction`.
 - **Scoring:** +1 per correct winner pick; ties (no winner) score nothing. Standings rank by
   total correct (cumulative all season). Standard competition ranking (1,1,3,…).
+- **Identity:** players have a public `@username` plus private first/last name (collected at
+  signup; the leaderboard/grid show `@username` + full name). The 2 legacy accounts are sent to
+  `/complete-profile` on next login until they set theirs. Username: 3–20 `[A-Za-z0-9_]`, unique
+  case-insensitively.
+- **Shared picks:** once a week locks, the picks board shows **everyone's** picks for that week
+  (grid, green/red once final, weekly correct tally). Open/future weeks show only your own — the
+  server never sends others' open-week picks.
 - **Tiebreaker:** each week, players predict the combined final score of that week's last game
   (`saveWeekPrediction`). Season-end ties are broken by the smallest total error
   (Σ |predicted − actual|) over completed weeks; a week with no prediction is penalized so a
@@ -214,7 +233,10 @@ Other scripts:
   in `results-source.ts` already does live scores).
 - nflverse also carries **betting spreads/lines** (unused) — could power a spread-pick mode.
 - Weekly winners / pick reminders are not built. (The combined-score **tiebreaker**, **admin
-  password reset**, and **self-service email password reset** are now built — see §7.)
+  password reset**, **self-service email password reset**, **usernames**, and **shared picks
+  after lock** are now built — see §7.)
+- Changing your **username** later is only possible while the profile is still incomplete (the
+  `/complete-profile` form). There's no general "rename" UI on `/account` yet.
 - The password-reset request endpoint is **not rate-limited** — acceptable for a small private
   league; add throttling if it's ever abused (also bounds Gmail's daily send quota).
 - A password reset/change does **not** invalidate existing JWT sessions (stateless sessions
@@ -236,7 +258,7 @@ Other scripts:
 
 ```bash
 npm run dev            # local dev
-npm test               # vitest (49 tests)
+npm test               # vitest (62 tests)
 npm run typecheck      # tsc --noEmit
 npm run build          # prisma generate && next build
 npm run db:push        # push schema to DB
