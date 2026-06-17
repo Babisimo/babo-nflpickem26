@@ -23,6 +23,7 @@ model User {
   createdAt    DateTime @default(now())
   picks        Pick[]
   weekPredictions WeekPrediction[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Team {
@@ -83,4 +84,16 @@ model WeekPrediction {
   updatedAt      DateTime @updatedAt
 
   @@unique([userId, week])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
