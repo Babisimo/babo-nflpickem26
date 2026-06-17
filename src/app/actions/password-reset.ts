@@ -37,10 +37,18 @@ export async function requestPasswordReset(
     data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
   });
 
+  // Build the reset link from a TRUSTED base URL, never from the request Host
+  // header (a client can forge it to phish the one-time token). APP_URL is set in
+  // production; the Host fallback only matters for local dev (host = localhost).
   const h = await headers();
   const host = h.get('host') ?? '';
-  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-  const resetUrl = `${proto}://${host}/reset-password?token=${token}`;
+  if (!process.env.APP_URL && !host.startsWith('localhost')) {
+    console.warn('[password-reset] APP_URL is not set — falling back to the request Host header. Set APP_URL to prevent host-header injection.');
+  }
+  const base =
+    process.env.APP_URL?.replace(/\/+$/, '') ??
+    `${host.startsWith('localhost') ? 'http' : 'https'}://${host}`;
+  const resetUrl = `${base}/reset-password?token=${token}`;
 
   try {
     await sendPasswordResetEmail(parsed.data, resetUrl);

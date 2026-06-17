@@ -132,6 +132,7 @@ Other scripts:
 | `CRON_SECRET` | Authorizes `/api/cron/results` (Vercel sends it as `Authorization: Bearer`). |
 | `GMAIL_USER` | Gmail address that sends password-reset emails (Nodemailer SMTP). |
 | `GMAIL_APP_PASSWORD` | 16-char Google **App Password** (needs 2-Step Verification on that account) — NOT the normal password. |
+| `APP_URL` | Canonical site origin (e.g. `https://nfl-pickem26.vercel.app`). Used to build reset links from a trusted base instead of the request `Host` header (host-header-injection safe). If unset in prod it falls back to `Host` and logs a warning; unset locally → `http://localhost:3000`. |
 
 > ⚠️ These secrets were shared in the chat that built this app. If that transcript
 > is ever exposed, **rotate them**: new Neon password (update both URLs), and
@@ -215,7 +216,11 @@ Other scripts:
 - Weekly winners / pick reminders are not built. (The combined-score **tiebreaker**, **admin
   password reset**, and **self-service email password reset** are now built — see §7.)
 - The password-reset request endpoint is **not rate-limited** — acceptable for a small private
-  league; add throttling if it's ever abused.
+  league; add throttling if it's ever abused (also bounds Gmail's daily send quota).
+- A password reset/change does **not** invalidate existing JWT sessions (stateless sessions
+  stay valid until expiry). Fine for the forgot-password case; if you need to kill a
+  compromised session immediately, add a `passwordChangedAt` check in the next-auth `jwt`/`session`
+  callbacks.
 - Outbound email goes through one Gmail account (Nodemailer SMTP), subject to Gmail's ~500/day
   send cap. Fine for resets; revisit if email volume grows.
 - Glue code (`results-apply`, `schedule-apply`, `seed`) is intentionally untested
