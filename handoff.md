@@ -1,6 +1,6 @@
 # NFL 2026 Pick'em — Handoff
 
-_Last updated: 2026-06-16_
+_Last updated: 2026-06-17_
 
 A season-long NFL pick'em web app. Players sign up, pick the winner of every
 regular-season game (locked per week), and the person with the most correct
@@ -34,7 +34,7 @@ npm run dev          # http://localhost:3000
 ```
 
 Other scripts:
-- `npm test` — run all Vitest tests (currently 41 passing)
+- `npm test` — run all Vitest tests (currently 49 passing)
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run build` — `prisma generate && next build`
 
@@ -77,7 +77,11 @@ Other scripts:
 - `src/lib/admin-guard.ts` — `canRemoveUser` / `canSetAdmin` guardrails (no self-action,
   no removing/demoting the last admin). Tested in `admin-guard.test.ts`.
 - `src/lib/auth.ts` — next-auth config + the `AppSession` type (cast `auth()` results to it).
-- `src/lib/auth-helpers.ts` — bcrypt hash/verify. Tested.
+- `src/lib/auth-helpers.ts` — bcrypt hash/verify + `generateTempPassword`. Tested.
+- `src/lib/password-reset.ts` — reset-token logic: `hashResetToken` (SHA-256), `generateResetToken`,
+  `isResetTokenValid`, `RESET_TOKEN_TTL_MS` (1h). Pure, tested in `password-reset.test.ts`.
+- `src/lib/email.ts` — Nodemailer Gmail-SMTP transporter + `sendPasswordResetEmail`. Reads
+  `GMAIL_USER`/`GMAIL_APP_PASSWORD` (see §4). `server-only`.
 
 ### Pages / routes (App Router)
 - `src/app/layout.tsx` — root layout: session-aware header (desktop nav + `MobileMenu`),
@@ -88,7 +92,9 @@ Other scripts:
 - `src/app/picks/page.tsx` + `PicksClient.tsx` — the weekly picks board: per-week open
   state, **live countdown timer**, locked-week view-only, Save button + unfinished warnings,
   plus a per-week **tiebreaker** combined-score input (auto-saved, lock-enforced).
-- `src/app/login/page.tsx`, `src/app/signup/page.tsx` — auth forms.
+- `src/app/login/page.tsx`, `src/app/signup/page.tsx` — auth forms (login has a **Forgot password?** link).
+- `src/app/forgot-password/page.tsx` — request a reset link by email (generic response, no enumeration).
+- `src/app/reset-password/page.tsx` — set a new password from the emailed `?token=` link.
 - `src/app/account/page.tsx` — signed-in users change their own password (`changePassword`).
 - `src/app/admin/page.tsx` + `AdminClient.tsx` — admin: Players panel (remove / make-admin /
   demote / **reset password** → one-time temp string), Games table (set-winner overrides),
@@ -96,7 +102,7 @@ Other scripts:
 - `src/app/MobileMenu.tsx` — mobile hamburger nav drawer.
 - `src/app/actions/*` — server actions: `auth.ts` (signup, logout, changePassword), `picks.ts`
   (savePick, saveWeekPrediction — both enforce the week lock server-side), `admin.ts`
-  (removeUser, setAdmin, resetUserPassword).
+  (removeUser, setAdmin, resetUserPassword), `password-reset.ts` (requestPasswordReset, resetPassword).
 - `src/app/api/admin/refresh` — POST, admin-only, results refresh.
 - `src/app/api/admin/refresh-schedule` — POST, admin-only, schedule refresh.
 - `src/app/api/admin/override` — POST, admin-only, manual winner override.
@@ -115,7 +121,7 @@ Other scripts:
 
 ## 4. Environment & secrets
 
-`.env` (gitignored — NOT in the repo). The same 5 vars are set on the Vercel project.
+`.env` (gitignored — NOT in the repo). The same vars are set on the Vercel project.
 
 | Var | What |
 |---|---|
@@ -124,6 +130,8 @@ Other scripts:
 | `AUTH_SECRET` | next-auth session signing secret. |
 | `ADMIN_EMAIL` | Whoever signs up with this email becomes admin → `gondaniel852@gmail.com`. |
 | `CRON_SECRET` | Authorizes `/api/cron/results` (Vercel sends it as `Authorization: Bearer`). |
+| `GMAIL_USER` | Gmail address that sends password-reset emails (Nodemailer SMTP). |
+| `GMAIL_APP_PASSWORD` | 16-char Google **App Password** (needs 2-Step Verification on that account) — NOT the normal password. |
 
 > ⚠️ These secrets were shared in the chat that built this app. If that transcript
 > is ever exposed, **rotate them**: new Neon password (update both URLs), and
@@ -173,9 +181,10 @@ Other scripts:
   (`saveWeekPrediction`). Season-end ties are broken by the smallest total error
   (Σ |predicted − actual|) over completed weeks; a week with no prediction is penalized so a
   blank never helps. Pure logic in `tiebreaker.ts`; applied as `computeStandings`' 4th arg.
-- **Password reset:** an admin can reset any player's password to a one-time temp string
-  (Players panel → **Reset password**, shown once to relay out-of-band); players change their
-  own at **`/account`**. No email provider is involved.
+- **Password reset:** three paths. (1) **Self-service by email** — login → **Forgot password?**
+  → `/forgot-password` emails a one-time link (1-hour, single-use, hashed token via Gmail SMTP)
+  to `/reset-password`. (2) **Admin** resets any player's password to a one-time temp string
+  (Players panel → **Reset password**). (3) Signed-in users change their own at **`/account`**.
 - **Results:** `/api/cron/results` runs **once daily at 12:00 UTC** (`vercel.json` —
   Hobby plan allows one cron/day). Admin can "Force refresh results" anytime.
 - **Schedule:** seeded once; refreshed only via the admin **"Refresh schedule"** button
@@ -203,8 +212,12 @@ Other scripts:
   live scores, swap/add a provider behind the `NormalizedGame` interface (the ESPN provider
   in `results-source.ts` already does live scores).
 - nflverse also carries **betting spreads/lines** (unused) — could power a spread-pick mode.
-- Weekly winners / pick reminders / email notifications are not built. (The combined-score
-  **tiebreaker** and **admin password reset** are now built — see §7.)
+- Weekly winners / pick reminders are not built. (The combined-score **tiebreaker**, **admin
+  password reset**, and **self-service email password reset** are now built — see §7.)
+- The password-reset request endpoint is **not rate-limited** — acceptable for a small private
+  league; add throttling if it's ever abused.
+- Outbound email goes through one Gmail account (Nodemailer SMTP), subject to Gmail's ~500/day
+  send cap. Fine for resets; revisit if email volume grows.
 - Glue code (`results-apply`, `schedule-apply`, `seed`) is intentionally untested
   (network + DB); the pure logic it depends on is unit-tested. Could add integration tests.
 
@@ -218,7 +231,7 @@ Other scripts:
 
 ```bash
 npm run dev            # local dev
-npm test               # vitest (41 tests)
+npm test               # vitest (49 tests)
 npm run typecheck      # tsc --noEmit
 npm run build          # prisma generate && next build
 npm run db:push        # push schema to DB

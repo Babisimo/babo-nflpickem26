@@ -26,6 +26,7 @@ export async function removeUser(targetUserId: string): Promise<GuardResult> {
 
   await db.pick.deleteMany({ where: { userId: targetUserId } });
   await db.weekPrediction.deleteMany({ where: { userId: targetUserId } });
+  await db.passwordResetToken.deleteMany({ where: { userId: targetUserId } });
   await db.user.delete({ where: { id: targetUserId } });
   revalidatePath('/admin');
   revalidatePath('/');

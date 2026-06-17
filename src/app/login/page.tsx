@@ -57,6 +57,15 @@ function LoginForm() {
           </button>
         </form>
 
+        <p className="mt-4 text-right">
+          <Link
+            href="/forgot-password"
+            className="font-mono text-[12px] uppercase tracking-[0.1em] text-accent underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </p>
+
         <p className="mt-6 font-mono text-[12px] uppercase tracking-[0.1em] text-faint">
           No account?{' '}
           <Link href="/signup" className="text-accent underline-offset-4 hover:underline">
