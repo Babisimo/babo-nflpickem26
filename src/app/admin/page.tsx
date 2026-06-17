@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { auth, type AppSession } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { isProfileComplete } from '@/lib/profile';
 import { AdminClient } from './AdminClient';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +9,12 @@ export const dynamic = 'force-dynamic';
 export default async function AdminPage() {
   const session = (await auth()) as AppSession | null;
   if (!session?.user?.isAdmin) redirect('/');
+
+  const me = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { username: true, firstName: true, lastName: true },
+  });
+  if (me && !isProfileComplete(me)) redirect('/complete-profile');
 
   const [games, users] = await Promise.all([
     db.game.findMany({

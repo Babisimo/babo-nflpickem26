@@ -83,3 +83,37 @@ export async function changePassword(
   await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(next) } });
   return { ok: true };
 }
+
+export type CompleteProfileState = { error?: string; ok?: boolean } | undefined;
+
+export async function completeProfile(
+  _prev: CompleteProfileState,
+  formData: FormData,
+): Promise<CompleteProfileState> {
+  const session = (await auth()) as AppSession | null;
+  const userId = session?.user?.id;
+  if (!userId) return { error: 'Not signed in.' };
+
+  const uname = validateUsername(String(formData.get('username') ?? ''));
+  if (!uname.ok) return { error: uname.error };
+  const first = validateName(String(formData.get('firstName') ?? ''), 'First name');
+  if (!first.ok) return { error: first.error };
+  const last = validateName(String(formData.get('lastName') ?? ''), 'Last name');
+  if (!last.ok) return { error: last.error };
+
+  const taken = await db.user.findFirst({
+    where: { username: { equals: uname.value, mode: 'insensitive' }, NOT: { id: userId } },
+  });
+  if (taken) return { error: 'That username is taken.' };
+
+  await db.user.update({
+    where: { id: userId },
+    data: {
+      username: uname.value,
+      firstName: first.value,
+      lastName: last.value,
+      name: `${first.value} ${last.value}`,
+    },
+  });
+  return { ok: true };
+}
