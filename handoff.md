@@ -130,7 +130,7 @@ Other scripts:
 | `AUTH_SECRET` | next-auth session signing secret. |
 | `ADMIN_EMAIL` | Whoever signs up with this email becomes admin → `gondaniel852@gmail.com`. |
 | `CRON_SECRET` | Authorizes `/api/cron/results` (Vercel sends it as `Authorization: Bearer`). |
-| `GMAIL_USER` | Gmail address that sends password-reset emails (Nodemailer SMTP). |
+| `GMAIL_USER` | **Dedicated** Gmail that sends password-reset emails (Nodemailer SMTP) → `nflpickem.admin@gmail.com`. Kept separate from any personal account so it isn't exposed to recipients; must have 2-Step Verification on (App Passwords require it). Inbox shows the "NFL Pick'em" display name (hardcoded in `src/lib/email.ts`). |
 | `GMAIL_APP_PASSWORD` | 16-char Google **App Password** (needs 2-Step Verification on that account) — NOT the normal password. |
 | `APP_URL` | Canonical site origin (e.g. `https://nfl-pickem26.vercel.app`). Used to build reset links from a trusted base instead of the request `Host` header (host-header-injection safe). If unset in prod it falls back to `Host` and logs a warning; unset locally → `http://localhost:3000`. |
 
