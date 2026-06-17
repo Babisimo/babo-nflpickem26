@@ -94,7 +94,8 @@ Other scripts:
 
 ### Pages / routes (App Router)
 - `src/app/layout.tsx` — root layout: session-aware header (desktop nav + `MobileMenu`),
-  fonts (Anton / Hanken Grotesk / JetBrains Mono), footer.
+  fonts (Anton / Hanken Grotesk / JetBrains Mono), footer, and a top **navigation progress bar**
+  (`nextjs-toploader`, gold, mounted at the top of `<body>`) for page-load feedback.
 - `src/app/page.tsx` — **home = the standings/leaderboard** (admins excluded). Hero shows
   the next week to lock.
 - `src/app/standings/page.tsx` — redirects to `/` (kept for old links).

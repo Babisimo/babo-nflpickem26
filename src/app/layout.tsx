@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { auth, type AppSession } from '@/lib/auth';
 import { logout } from '@/app/actions/auth';
 import { MobileMenu } from '@/app/MobileMenu';
+import NextTopLoader from 'nextjs-toploader';
 
 const display = Anton({ subsets: ['latin'], weight: '400', variable: '--font-display' });
 const sans = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
@@ -33,6 +34,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>
+        <NextTopLoader
+          color="#ffcb3d"
+          height={3}
+          showSpinner={false}
+          shadow="0 0 10px #ffcb3d,0 0 5px #ffcb3d"
+          zIndex={1600}
+        />
         <header className="sticky top-0 z-50 border-b border-line bg-ink/70 backdrop-blur-xl">
           <nav className="mx-auto flex max-w-6xl items-center gap-6 px-5 py-3.5">
             <Link href="/" className="group flex items-center gap-2.5">
