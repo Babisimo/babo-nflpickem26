@@ -2,11 +2,28 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { savePick, saveWeekPrediction } from '@/app/actions/picks';
+import { LeaguePicksGrid } from './LeaguePicksGrid';
 
 type Team = { id: string; abbr: string; name: string; color: string; logoUrl: string | null };
-type Game = { id: string; home: Team; away: Team; kickoffAt: string };
+type Game = {
+  id: string;
+  home: Team;
+  away: Team;
+  kickoffAt: string;
+  winnerTeamId: string | null;
+  status: string;
+};
 type Tiebreaker = { gameId: string; label: string; final: boolean; actualTotal: number | null };
-type Week = { week: number; open: boolean; lockAt: string | null; games: Game[]; tiebreaker: Tiebreaker | null };
+type LeaguePlayer = { id: string; handle: string; fullName: string };
+type League = { players: LeaguePlayer[]; picks: { userId: string; gameId: string; pickedTeamId: string }[] };
+type Week = {
+  week: number;
+  open: boolean;
+  lockAt: string | null;
+  games: Game[];
+  tiebreaker: Tiebreaker | null;
+  league: League | null;
+};
 
 /** Live countdown to a week's lock time. Renders nothing meaningful until mounted (avoids hydration mismatch). */
 function Countdown({ lockAt }: { lockAt: string }) {
@@ -265,87 +282,91 @@ export function PicksClient({
         </span>
       </div>
 
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {weekGames.map((g, i) => (
-          <li
-            key={g.id}
-            className="reveal card overflow-hidden"
-            style={{ animationDelay: `${Math.min(i, 10) * 35 + 140}ms` }}
-          >
-            <div className="flex items-center justify-between px-4 pt-3">
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-                {new Date(g.kickoffAt).toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-                {new Date(g.kickoffAt).toLocaleTimeString(undefined, {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 p-3">
-              {[g.away, g.home].map((t) => {
-                const selected = picks[g.id] === t.id;
-                const isHome = t === g.home;
-                return (
-                  <button
-                    key={t.id}
-                    disabled={!weekOpen || saving === g.id}
-                    onClick={() => choose(g.id, t.id)}
-                    className={`group relative flex flex-col items-center gap-2.5 rounded-xl border px-3 py-4 transition-all duration-200 disabled:cursor-not-allowed ${
-                      selected
-                        ? 'border-transparent'
-                        : 'border-line bg-ink-900/40 hover:border-white/20 hover:bg-ink-700/40'
-                    } ${saving === g.id ? 'opacity-60' : ''} ${!weekOpen && !selected ? 'opacity-50' : ''}`}
-                    style={
-                      selected
-                        ? {
-                            background: `linear-gradient(160deg, ${t.color}33, ${t.color}0d)`,
-                            boxShadow: `inset 0 0 0 1.5px ${t.color}`,
-                          }
-                        : {}
-                    }
-                  >
-                    {selected && (
-                      <span
-                        className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold text-white"
-                        style={{ background: t.color }}
-                      >
-                        &#10003;
-                      </span>
-                    )}
-                    {t.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={t.logoUrl}
-                        alt=""
-                        className="h-11 w-11 object-contain transition-transform duration-200 group-hover:scale-110"
-                        style={{ filter: selected ? 'none' : 'saturate(0.9)' }}
-                      />
-                    ) : (
-                      <span className="grid h-11 w-11 place-items-center rounded-full bg-ink-700 font-display text-sm">
-                        {t.abbr}
-                      </span>
-                    )}
-                    <div className="text-center">
-                      <div className="font-display text-base uppercase leading-none tracking-wide text-chalk">
-                        {t.abbr}
+      {weekOpen ? (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {weekGames.map((g, i) => (
+            <li
+              key={g.id}
+              className="reveal card overflow-hidden"
+              style={{ animationDelay: `${Math.min(i, 10) * 35 + 140}ms` }}
+            >
+              <div className="flex items-center justify-between px-4 pt-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+                  {new Date(g.kickoffAt).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+                  {new Date(g.kickoffAt).toLocaleTimeString(undefined, {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-3">
+                {[g.away, g.home].map((t) => {
+                  const selected = picks[g.id] === t.id;
+                  const isHome = t === g.home;
+                  return (
+                    <button
+                      key={t.id}
+                      disabled={!weekOpen || saving === g.id}
+                      onClick={() => choose(g.id, t.id)}
+                      className={`group relative flex flex-col items-center gap-2.5 rounded-xl border px-3 py-4 transition-all duration-200 disabled:cursor-not-allowed ${
+                        selected
+                          ? 'border-transparent'
+                          : 'border-line bg-ink-900/40 hover:border-white/20 hover:bg-ink-700/40'
+                      } ${saving === g.id ? 'opacity-60' : ''} ${!weekOpen && !selected ? 'opacity-50' : ''}`}
+                      style={
+                        selected
+                          ? {
+                              background: `linear-gradient(160deg, ${t.color}33, ${t.color}0d)`,
+                              boxShadow: `inset 0 0 0 1.5px ${t.color}`,
+                            }
+                          : {}
+                      }
+                    >
+                      {selected && (
+                        <span
+                          className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold text-white"
+                          style={{ background: t.color }}
+                        >
+                          &#10003;
+                        </span>
+                      )}
+                      {t.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={t.logoUrl}
+                          alt=""
+                          className="h-11 w-11 object-contain transition-transform duration-200 group-hover:scale-110"
+                          style={{ filter: selected ? 'none' : 'saturate(0.9)' }}
+                        />
+                      ) : (
+                        <span className="grid h-11 w-11 place-items-center rounded-full bg-ink-700 font-display text-sm">
+                          {t.abbr}
+                        </span>
+                      )}
+                      <div className="text-center">
+                        <div className="font-display text-base uppercase leading-none tracking-wide text-chalk">
+                          {t.abbr}
+                        </div>
+                        <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-faint">
+                          {isHome ? 'Home' : 'Away'}
+                        </div>
                       </div>
-                      <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-faint">
-                        {isHome ? 'Home' : 'Away'}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </li>
-        ))}
-      </ul>
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : current?.league ? (
+        <LeaguePicksGrid games={weekGames} players={current.league.players} picks={current.league.picks} />
+      ) : null}
 
       {current?.tiebreaker && (
         <div className="reveal card p-5">
