@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth, signOut, type AppSession } from '@/lib/auth';
 import { hashPassword, verifyPassword } from '@/lib/auth-helpers';
+import { validateUsername, validateName } from '@/lib/profile';
 
 /** Sign the current user out and return to the standings home. */
 export async function logout(): Promise<void> {
@@ -11,7 +12,6 @@ export async function logout(): Promise<void> {
 }
 
 const SignupSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
   email: z.string().email('Valid email required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
@@ -20,22 +20,35 @@ export type SignupState = { error?: string } | undefined;
 
 export async function signup(_prev: SignupState, formData: FormData): Promise<SignupState> {
   const parsed = SignupSchema.safeParse({
-    name: formData.get('name'),
     email: formData.get('email'),
     password: formData.get('password'),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
+  const uname = validateUsername(String(formData.get('username') ?? ''));
+  if (!uname.ok) return { error: uname.error };
+  const first = validateName(String(formData.get('firstName') ?? ''), 'First name');
+  if (!first.ok) return { error: first.error };
+  const last = validateName(String(formData.get('lastName') ?? ''), 'Last name');
+  if (!last.ok) return { error: last.error };
+
   const email = parsed.data.email.toLowerCase();
-  const existing = await db.user.findUnique({ where: { email } });
-  if (existing) return { error: 'An account with that email already exists.' };
+  if (await db.user.findUnique({ where: { email } })) {
+    return { error: 'An account with that email already exists.' };
+  }
+  if (await db.user.findFirst({ where: { username: { equals: uname.value, mode: 'insensitive' } } })) {
+    return { error: 'That username is taken.' };
+  }
 
   if (!process.env.ADMIN_EMAIL) {
     console.warn('[signup] ADMIN_EMAIL env var is not set — no user will be granted admin access on signup.');
   }
   await db.user.create({
     data: {
-      name: parsed.data.name,
+      name: `${first.value} ${last.value}`,
+      username: uname.value,
+      firstName: first.value,
+      lastName: last.value,
       email,
       passwordHash: await hashPassword(parsed.data.password),
       isAdmin: email === process.env.ADMIN_EMAIL?.toLowerCase(),

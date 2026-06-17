@@ -38,7 +38,11 @@ export default function SignupPage() {
           }}
           className="mt-6 space-y-3"
         >
-          <input name="name" placeholder="Name" className="field-input" required />
+          <input name="username" placeholder="Username" className="field-input" required />
+          <div className="flex gap-3">
+            <input name="firstName" placeholder="First name" className="field-input" required />
+            <input name="lastName" placeholder="Last name" className="field-input" required />
+          </div>
           <input name="email" type="email" placeholder="Email" className="field-input" required />
           <input
             name="password"
