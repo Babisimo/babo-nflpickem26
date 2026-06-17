@@ -11,9 +11,10 @@ export default async function AccountPage() {
 
   const me = await db.user.findUnique({
     where: { id: userId },
-    select: { username: true, firstName: true, lastName: true },
+    select: { username: true, firstName: true, lastName: true, usernameChangeCount: true },
   });
-  if (me && !isProfileComplete(me)) redirect('/complete-profile');
+  if (!me) redirect('/login');
+  if (!isProfileComplete(me)) redirect('/complete-profile');
 
-  return <AccountForm />;
+  return <AccountForm username={me.username} usernameChangeCount={me.usernameChangeCount} />;
 }

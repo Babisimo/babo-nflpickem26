@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth, signOut, type AppSession } from '@/lib/auth';
 import { hashPassword, verifyPassword } from '@/lib/auth-helpers';
-import { validateUsername, validateName } from '@/lib/profile';
+import { validateUsername, validateName, MAX_USERNAME_CHANGES } from '@/lib/profile';
+import { checkUsernameAllowed } from '@/lib/username-filter';
 
 /** Sign the current user out and return to the standings home. */
 export async function logout(): Promise<void> {
@@ -27,6 +28,8 @@ export async function signup(_prev: SignupState, formData: FormData): Promise<Si
 
   const uname = validateUsername(String(formData.get('username') ?? ''));
   if (!uname.ok) return { error: uname.error };
+  const allowed = checkUsernameAllowed(uname.value);
+  if (!allowed.ok) return { error: allowed.error };
   const first = validateName(String(formData.get('firstName') ?? ''), 'First name');
   if (!first.ok) return { error: first.error };
   const last = validateName(String(formData.get('lastName') ?? ''), 'Last name');
@@ -96,6 +99,8 @@ export async function completeProfile(
 
   const uname = validateUsername(String(formData.get('username') ?? ''));
   if (!uname.ok) return { error: uname.error };
+  const allowed = checkUsernameAllowed(uname.value);
+  if (!allowed.ok) return { error: allowed.error };
   const first = validateName(String(formData.get('firstName') ?? ''), 'First name');
   if (!first.ok) return { error: first.error };
   const last = validateName(String(formData.get('lastName') ?? ''), 'Last name');
@@ -114,6 +119,46 @@ export async function completeProfile(
       lastName: last.value,
       name: `${first.value} ${last.value}`,
     },
+  });
+  return { ok: true };
+}
+
+export type ChangeUsernameState = { error?: string; ok?: boolean } | undefined;
+
+export async function changeUsername(
+  _prev: ChangeUsernameState,
+  formData: FormData,
+): Promise<ChangeUsernameState> {
+  const session = (await auth()) as AppSession | null;
+  const userId = session?.user?.id;
+  if (!userId) return { error: 'Not signed in.' };
+
+  const uname = validateUsername(String(formData.get('username') ?? ''));
+  if (!uname.ok) return { error: uname.error };
+  const allowed = checkUsernameAllowed(uname.value);
+  if (!allowed.ok) return { error: allowed.error };
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { username: true, usernameChangeCount: true },
+  });
+  if (!user) return { error: 'Account not found.' };
+
+  if (user.username && user.username.toLowerCase() === uname.value.toLowerCase()) {
+    return { error: 'That’s already your username.' };
+  }
+  if (user.usernameChangeCount >= MAX_USERNAME_CHANGES) {
+    return { error: 'You’ve used all your username changes.' };
+  }
+
+  const taken = await db.user.findFirst({
+    where: { username: { equals: uname.value, mode: 'insensitive' }, NOT: { id: userId } },
+  });
+  if (taken) return { error: 'That username is taken.' };
+
+  await db.user.update({
+    where: { id: userId },
+    data: { username: uname.value, usernameChangeCount: { increment: 1 } },
   });
   return { ok: true };
 }
