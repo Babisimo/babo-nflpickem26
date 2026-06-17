@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { auth, type AppSession } from '@/lib/auth';
 import { computeStandings } from '@/lib/scoring';
+import { fullName } from '@/lib/profile';
 import { finalGameOfWeek, tiebreakErrorByUser } from '@/lib/tiebreaker';
 import { weekLockTime, isWeekOpen } from '@/lib/lock';
 
@@ -21,7 +22,10 @@ export default async function HomePage() {
   const session = (await auth()) as AppSession | null;
 
   const [users, picks, games, predictions] = await Promise.all([
-    db.user.findMany({ where: { isAdmin: false }, select: { id: true, name: true } }),
+    db.user.findMany({
+      where: { isAdmin: false },
+      select: { id: true, name: true, username: true, firstName: true, lastName: true },
+    }),
     db.pick.findMany({ select: { userId: true, gameId: true, pickedTeamId: true } }),
     db.game.findMany({
       select: {
@@ -54,7 +58,9 @@ export default async function HomePage() {
     }
   }
   const errors = tiebreakErrorByUser(users.map((u) => u.id), completedWeeks, predictions);
-  const standings = computeStandings(users, picks, results, errors);
+  const usersForScoring = users.map((u) => ({ id: u.id, name: u.username ?? u.name }));
+  const userById = new Map(users.map((u) => [u.id, u]));
+  const standings = computeStandings(usersForScoring, picks, results, errors);
   const finals = games.filter((g) => g.status === 'FINAL').length;
 
   // Next weekly lock: the earliest still-open week's lock time.
@@ -165,20 +171,21 @@ export default async function HomePage() {
                         'linear-gradient(140deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
                     }}
                   >
-                    {initials(row.name)}
+                    {initials(fullName(userById.get(row.userId)!))}
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-sans text-base font-semibold text-chalk sm:text-lg">
-                      {row.name}
+                      {userById.get(row.userId)?.username ? `@${userById.get(row.userId)!.username}` : row.name}
                       {isMe && (
                         <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 align-middle font-mono text-[10px] uppercase tracking-[0.12em] text-accent">
                           You
                         </span>
                       )}
                     </p>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">
-                      {finals > 0 ? `${Math.round((row.correct / finals) * 100)}% hit rate` : 'No results yet'}
+                    <p className="truncate font-mono text-[11px] uppercase tracking-[0.16em] text-faint">
+                      {fullName(userById.get(row.userId)!)}
+                      {finals > 0 ? ` · ${Math.round((row.correct / finals) * 100)}% hit rate` : ''}
                     </p>
                   </div>
 
