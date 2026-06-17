@@ -20,6 +20,8 @@ picks at the end of the season wins. Points accumulate all season.
 - **Vitest** for unit tests
 - Data from **nflverse** (free, no API key)
 - Hosted on **Vercel** (Hobby plan)
+- Notable libs: **nodemailer** (Gmail SMTP, password-reset email), **obscenity** (username
+  profanity filter), **nextjs-toploader** (top navigation progress bar), **bcryptjs**, **zod**.
 
 ---
 
@@ -278,5 +280,7 @@ npm run db:seed        # (re)seed teams + schedule from nflverse — preserves n
 vercel inspect nfl-pickem26.vercel.app --logs | grep -E "Commit:|build cache"
 ```
 
-> The design spec for the big data-source/redesign change lives at
-> `docs/superpowers/specs/2026-06-12-data-source-routing-admin-redesign-design.md`.
+> **Design docs:** every feature has a spec in `docs/superpowers/specs/` and (for the larger
+> ones) an implementation plan in `docs/superpowers/plans/`. By date: `2026-06-12` data-source/
+> admin redesign; `2026-06-16` tiebreaker + admin password reset + 4h lock; `2026-06-17`
+> email password reset, usernames + shared picks, change-username, and the navigation progress bar.
