@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { validateUsername, validateName, isProfileComplete, fullName } from './profile';
+import {
+  validateUsername,
+  validateName,
+  isProfileComplete,
+  fullName,
+  usernameChangesRemaining,
+  MAX_USERNAME_CHANGES,
+} from './profile';
 
 describe('validateUsername', () => {
   it('accepts 3–20 chars of letters/numbers/underscore and trims', () => {
@@ -43,5 +50,17 @@ describe('fullName', () => {
   });
   it('falls back to name when parts are missing', () => {
     expect(fullName({ firstName: null, lastName: null, name: 'Legacy Name' })).toBe('Legacy Name');
+  });
+});
+
+describe('usernameChangesRemaining', () => {
+  it('allows MAX changes from a fresh account and counts down', () => {
+    expect(MAX_USERNAME_CHANGES).toBe(2);
+    expect(usernameChangesRemaining(0)).toBe(2);
+    expect(usernameChangesRemaining(1)).toBe(1);
+    expect(usernameChangesRemaining(2)).toBe(0);
+  });
+  it('never goes negative', () => {
+    expect(usernameChangesRemaining(3)).toBe(0);
   });
 });
